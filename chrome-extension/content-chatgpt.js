@@ -236,6 +236,11 @@ async function handleSearch(query) {
         query: query,
         limit: 20
     }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.warn('🔄 Extension context invalidated. Please refresh the page.');
+            showToast('⚠️ Please refresh the page to search', 3000);
+            return;
+        }
         if (response && response.results) {
             displayResults(response.results, query);
         }
@@ -261,6 +266,11 @@ function loadRecentMemories() {
         action: 'getRecentMemories',
         limit: 20
     }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.warn('🔄 Extension context invalidated. Please refresh the page.');
+            displayResults([], null);
+            return;
+        }
         if (response && response.results) {
             displayResults(response.results);
         }
@@ -306,6 +316,14 @@ function displayResults(results, searchQuery = null) {
 // Update stats
 function updateStats() {
     chrome.runtime.sendMessage({ action: 'getStats' }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.warn('🔄 Extension context invalidated. Please refresh the page.');
+            const countEl = document.getElementById('mf-count');
+            const sizeEl = document.getElementById('mf-size');
+            if (countEl) countEl.textContent = '⚠️ Refresh page';
+            if (sizeEl) sizeEl.textContent = 'Context lost';
+            return;
+        }
         if (response) {
             document.getElementById('mf-count').textContent = 
                 `${response.count || 0} memories`;
@@ -318,6 +336,10 @@ function updateStats() {
 // Export memories
 function exportMemories() {
     chrome.runtime.sendMessage({ action: 'exportMemories' }, (response) => {
+        if (chrome.runtime.lastError) {
+            showToast('⚠️ Extension context lost. Please refresh the page.', 4000);
+            return;
+        }
         if (response && response.data) {
             const blob = new Blob([response.data], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
