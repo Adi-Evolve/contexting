@@ -17,7 +17,7 @@
   ],
   
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "background-v2.js",
     "type": "module"
   },
   
@@ -27,14 +27,14 @@
         "https://chat.openai.com/*",
         "https://chatgpt.com/*"
       ],
-      "js": ["content-chatgpt.js"],
-      "css": ["styles.css"],
+      "js": ["conversation-tracker.js", "content-chatgpt-v2.js"],
+      "css": ["styles-v2.css"],
       "run_at": "document_end"
     },
     {
       "matches": ["https://claude.ai/*"],
-      "js": ["content-claude.js"],
-      "css": ["styles.css"],
+      "js": ["conversation-tracker.js", "content-claude.js"],
+      "css": ["styles-v2.css"],
       "run_at": "document_end"
     }
   ],
