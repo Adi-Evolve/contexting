@@ -24,7 +24,7 @@
     "onStartupFinished",
     "onLanguageModelAccess:*"
   ],
-  "main": "./extension-v2.js",
+  "main": "./extension.js",
   "contributes": {
     "chatParticipants": [
       {

@@ -102,6 +102,7 @@ setInterval(() => {
 
 // Process individual message and add to conversation
 const processedMessages = new Map(); // Store URL + messageId to track per-chat
+const MAX_PROCESSED_MESSAGES = 200; // Limit to prevent memory bloat
 
 function processMessage(messageElement) {
     // Avoid processing same message twice in same chat
@@ -128,8 +129,8 @@ function processMessage(messageElement) {
     
     console.log(`📝 Captured ${role} message (${content.length} chars)`);
     
-    // Clean up old processed messages (keep only last 100)
-    if (processedMessages.size > 100) {
+    // Clean up old processed messages to prevent memory bloat
+    if (processedMessages.size > MAX_PROCESSED_MESSAGES) {
         const firstKey = processedMessages.keys().next().value;
         processedMessages.delete(firstKey);
     }
