@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MemoryForge Performance Testing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1419;
+            color: #e6edf3;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #58a6ff;
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #2ea043;
+        }
+
+        button:disabled {
+            background: #30363d;
+            cursor: not-allowed;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .metric-card h3 {
+            color: #58a6ff;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 8px;
+            background: #0d1117;
+            border-radius: 4px;
+        }
+
+        .metric-label {
+            color: #8b949e;
+        }
+
+        .metric-value {
+            font-weight: 600;
+        }
+
+        .metric-value.good {
+            color: #3fb950;
+        }
+
+        .metric-value.warning {
+            color: #f0883e;
+        }
+
+        .metric-value.bad {
+            color: #f85149;
+        }
+
+        .chart-container {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            height: 300px;
+        }
+
+        .log-container {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin: 4px 0;
+            color: #8b949e;
+        }
+
+        .log-entry.success {
+            color: #3fb950;
+        }
+
+        .log-entry.warning {
+            color: #f0883e;
+        }
+
+        .log-entry.error {
+            color: #f85149;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #30363d;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3fb950, #58a6ff);
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status.running {
+            background: rgba(88, 166, 255, 0.1);
+            color: #58a6ff;
+        }
+
+        .status.complete {
+            background: rgba(63, 185, 80, 0.1);
+            color: #3fb950;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ MemoryForge Performance Testing</h1>
+        <p style="color: #8b949e; margin-bottom: 20px;">
+            Comprehensive performance benchmarks and optimization analysis
+        </p>
+
+        <div class="controls">
+            <button id="run-all">▶ Run All Tests</button>
+            <button id="run-storage">Storage Tests</button>
+            <button id="run-search">Search Tests</button>
+            <button id="run-compression">Compression Tests</button>
+            <button id="run-stress">Stress Test</button>
+            <button id="clear-log">Clear Log</button>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <h3>📊 Overall Performance</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Total Operations:</span>
+                    <span class="metric-value" id="total-ops">0</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Average Latency:</span>
+                    <span class="metric-value" id="avg-latency">0ms</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Memory Usage:</span>
+                    <span class="metric-value" id="memory-usage">0 MB</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Status:</span>
+                    <span class="status" id="status">Ready</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <h3>🔥 Hot Tier (Target: <50ms)</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Add Operation:</span>
+                    <span class="metric-value" id="hot-add">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Get Operation:</span>
+                    <span class="metric-value" id="hot-get">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Search Operation:</span>
+                    <span class="metric-value" id="hot-search">-</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <h3>💿 Warm Tier (Target: <100ms)</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Add Operation:</span>
+                    <span class="metric-value" id="warm-add">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Get Operation:</span>
+                    <span class="metric-value" id="warm-get">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Batch Operation:</span>
+                    <span class="metric-value" id="warm-batch">-</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <h3>❄️ Cold Tier (Target: <500ms)</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Compression:</span>
+                    <span class="metric-value" id="cold-compress">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Decompression:</span>
+                    <span class="metric-value" id="cold-decompress">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Compression Ratio:</span>
+                    <span class="metric-value" id="cold-ratio">-</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <h3>🔍 Search Performance</h3>
+                <div class="metric-row">
+                    <span class="metric-label">10 Messages:</span>
+                    <span class="metric-value" id="search-10">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">100 Messages:</span>
+                    <span class="metric-value" id="search-100">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">1000 Messages:</span>
+                    <span class="metric-value" id="search-1000">-</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <h3>🎯 Algorithm Performance</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Fingerprint Gen:</span>
+                    <span class="metric-value" id="algo-fingerprint">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Similarity Calc:</span>
+                    <span class="metric-value" id="algo-similarity">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">NLP Processing:</span>
+                    <span class="metric-value" id="algo-nlp">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3 style="color: #58a6ff; margin-bottom: 15px;">📈 Latency Over Time</h3>
+            <canvas id="latency-chart"></canvas>
+        </div>
+
+        <div class="log-container" id="log-output">
+            <div class="log-entry">🚀 Performance testing system ready...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { MemoryForge } from './src/core/MemoryForge.js';
+        import { PerformanceMonitor } from './src/utils/PerformanceMonitor.js';
+
+        const monitor = new PerformanceMonitor();
+        const forge = new MemoryForge();
+
+        // Initialize
+        await forge.init();
+        log('✅ MemoryForge initialized', 'success');
+
+        // Logging
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('log-output');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logOutput.appendChild(entry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function updateMetric(id, value, threshold = null) {
+            const element = document.getElementById(id);
+            if (!element) return;
+
+            element.textContent = typeof value === 'number' ? `${value.toFixed(2)}ms` : value;
+
+            if (threshold && typeof value === 'number') {
+                element.className = 'metric-value ' + (
+                    value < threshold ? 'good' :
+                    value < threshold * 1.5 ? 'warning' : 'bad'
+                );
+            }
+        }
+
+        // Storage Tests
+        async function testStorage() {
+            log('🧪 Running storage performance tests...');
+
+            // Hot tier add
+            let start = performance.now();
+            await forge.addMessage('Hot tier test message');
+            updateMetric('hot-add', performance.now() - start, 50);
+
+            // Hot tier get
+            start = performance.now();
+            const messages = await forge.getRecent(1);
+            updateMetric('hot-get', performance.now() - start, 50);
+
+            // Warm tier batch
+            start = performance.now();
+            for (let i = 0; i < 50; i++) {
+                await forge.addMessage(`Batch message ${i}`);
+            }
+            updateMetric('warm-batch', performance.now() - start, 500);
+
+            log('✅ Storage tests complete', 'success');
+        }
+
+        // Search Tests
+        async function testSearch() {
+            log('🔍 Running search performance tests...');
+
+            // Add test data
+            for (let i = 0; i < 100; i++) {
+                await forge.addMessage(`Test message ${i} about ${i % 10 === 0 ? 'machine learning' : 'random topic'}`);
+            }
+
+            // Search 10 messages
+            let start = performance.now();
+            await forge.search('machine learning', 10);
+            updateMetric('search-10', performance.now() - start, 50);
+
+            // Add more data
+            for (let i = 100; i < 1000; i++) {
+                await forge.addMessage(`Message ${i}`);
+            }
+
+            // Search 1000 messages
+            start = performance.now();
+            await forge.search('machine', 10);
+            updateMetric('search-1000', performance.now() - start, 100);
+
+            log('✅ Search tests complete', 'success');
+        }
+
+        // Compression Tests
+        async function testCompression() {
+            log('🗜️ Running compression performance tests...');
+
+            const largeMessage = 'word '.repeat(10000);
+
+            const start = performance.now();
+            const id = await forge.addMessage(largeMessage);
+            const duration = performance.now() - start;
+
+            updateMetric('cold-compress', duration, 500);
+
+            // Test retrieval (decompression)
+            const retrieveStart = performance.now();
+            await forge.getMessage(id);
+            updateMetric('cold-decompress', performance.now() - retrieveStart, 100);
+
+            log('✅ Compression tests complete', 'success');
+        }
+
+        // Algorithm Tests
+        async function testAlgorithms() {
+            log('⚙️ Running algorithm performance tests...');
+
+            const { SemanticFingerprint } = await import('./src/core/intelligence/SemanticFingerprint.js');
+            const { AdvancedNLP } = await import('./src/utils/AdvancedNLP.js');
+
+            const fp = new SemanticFingerprint();
+            const nlp = new AdvancedNLP();
+
+            // Fingerprint generation
+            let start = performance.now();
+            const fingerprint = fp.generate('Machine learning is a subset of artificial intelligence');
+            updateMetric('algo-fingerprint', performance.now() - start, 1);
+
+            // Similarity calculation
+            start = performance.now();
+            const fp2 = fp.generate('AI and machine learning are related');
+            fp.similarity(fingerprint, fp2);
+            updateMetric('algo-similarity', performance.now() - start, 1);
+
+            // NLP processing
+            start = performance.now();
+            nlp.extractEntities('Contact me at test@example.com');
+            nlp.analyzeSentiment('This is amazing!');
+            nlp.detectIntent('How do I do this?');
+            updateMetric('algo-nlp', performance.now() - start, 10);
+
+            log('✅ Algorithm tests complete', 'success');
+        }
+
+        // Stress Test
+        async function stressTest() {
+            log('💪 Running stress test...');
+            document.getElementById('status').textContent = 'Running...';
+            document.getElementById('status').className = 'status running';
+
+            const operations = 1000;
+            const startTime = performance.now();
+
+            for (let i = 0; i < operations; i++) {
+                await forge.addMessage(`Stress test message ${i}`);
+
+                if (i % 100 === 0) {
+                    log(`Progress: ${i}/${operations} operations`);
+                    await forge.search('test', 5);
+                }
+            }
+
+            const duration = performance.now() - startTime;
+            const avgLatency = duration / operations;
+
+            updateMetric('total-ops', operations);
+            updateMetric('avg-latency', avgLatency);
+
+            document.getElementById('status').textContent = 'Complete';
+            document.getElementById('status').className = 'status complete';
+
+            log(`✅ Stress test complete: ${operations} ops in ${duration.toFixed(2)}ms`, 'success');
+            log(`Average: ${avgLatency.toFixed(2)}ms per operation`, 'success');
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            log('🚀 Starting comprehensive performance testing...');
+
+            await testStorage();
+            await testAlgorithms();
+            await testSearch();
+            await testCompression();
+            
+            // Update overall stats
+            const stats = forge.getStats();
+            updateMetric('total-ops', stats.messages.total);
+            updateMetric('memory-usage', `${(stats.storage.totalSize / 1024).toFixed(2)} KB`);
+
+            log('✨ All tests complete!', 'success');
+
+            // Show performance report
+            const report = monitor.getReport();
+            log(`📊 Performance Report: ${JSON.stringify(report, null, 2)}`);
+        }
+
+        // Event listeners
+        document.getElementById('run-all').addEventListener('click', runAllTests);
+        document.getElementById('run-storage').addEventListener('click', testStorage);
+        document.getElementById('run-search').addEventListener('click', testSearch);
+        document.getElementById('run-compression').addEventListener('click', testCompression);
+        document.getElementById('run-stress').addEventListener('click', stressTest);
+        document.getElementById('clear-log').addEventListener('click', () => {
+            document.getElementById('log-output').innerHTML = '';
+        });
+
+        // Update memory usage periodically
+        setInterval(() => {
+            if (performance.memory) {
+                const mb = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2);
+                updateMetric('memory-usage', `${mb} MB`);
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MemoryForge Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1419;
+            color: #e6edf3;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #58a6ff;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #161b22;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+        }
+
+        .stat {
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #8b949e;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .stat-value.pass { color: #3fb950; }
+        .stat-value.fail { color: #f85149; }
+        .stat-value.skip { color: #f0883e; }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #2ea043;
+        }
+
+        button:disabled {
+            background: #30363d;
+            cursor: not-allowed;
+        }
+
+        .test-suite {
+            margin: 20px 0;
+            background: #161b22;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            overflow: hidden;
+        }
+
+        .suite-header {
+            padding: 15px 20px;
+            background: #21262d;
+            border-bottom: 1px solid #30363d;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .suite-header:hover {
+            background: #2d333b;
+        }
+
+        .suite-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .suite-stats {
+            font-size: 14px;
+            color: #8b949e;
+        }
+
+        .test-list {
+            display: none;
+        }
+
+        .test-list.expanded {
+            display: block;
+        }
+
+        .test-case {
+            padding: 12px 20px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .test-case:last-child {
+            border-bottom: none;
+        }
+
+        .test-name {
+            flex: 1;
+        }
+
+        .test-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.pass {
+            background: rgba(63, 185, 80, 0.1);
+            color: #3fb950;
+        }
+
+        .status-badge.fail {
+            background: rgba(248, 81, 73, 0.1);
+            color: #f85149;
+        }
+
+        .status-badge.skip {
+            background: rgba(240, 136, 62, 0.1);
+            color: #f0883e;
+        }
+
+        .test-error {
+            margin-top: 8px;
+            padding: 10px;
+            background: rgba(248, 81, 73, 0.1);
+            border-left: 3px solid #f85149;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #f85149;
+            white-space: pre-wrap;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #30363d;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3fb950, #58a6ff);
+            transition: width 0.3s ease;
+        }
+
+        #console-output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #161b22;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .console-log {
+            margin: 4px 0;
+            color: #8b949e;
+        }
+
+        .console-error {
+            color: #f85149;
+        }
+
+        .console-warn {
+            color: #f0883e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 MemoryForge Test Suite</h1>
+        <p style="color: #8b949e; margin-bottom: 20px;">Comprehensive testing for all core algorithms</p>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Total Tests</div>
+                <div class="stat-value" id="total-tests">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Passed</div>
+                <div class="stat-value pass" id="passed-tests">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Failed</div>
+                <div class="stat-value fail" id="failed-tests">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Coverage</div>
+                <div class="stat-value" id="coverage">0%</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Duration</div>
+                <div class="stat-value" id="duration">0ms</div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress" style="width: 0%"></div>
+        </div>
+
+        <div class="controls">
+            <button id="run-all">▶ Run All Tests</button>
+            <button id="run-failed">🔄 Run Failed Tests</button>
+            <button id="clear-results">🗑 Clear Results</button>
+        </div>
+
+        <div id="test-suites"></div>
+
+        <div id="console-output"></div>
+    </div>
+
+    <script type="module">
+        import { TestFramework } from './test-framework.js';
+
+        // Import all test suites
+        import './SemanticFingerprint.test.js';
+        import './TemporalGraph.test.js';
+        import './CausalityTracker.test.js';
+        import './HierarchicalStorage.test.js';
+        import './MultiLevelCompressor.test.js';
+        import './DifferentialCompressor.test.js';
+        import './AdvancedNLP.test.js';
+        import './IndexedDB.test.js';
+        import './MemoryForge.test.js';
+
+        const framework = TestFramework.getInstance();
+
+        // Update UI
+        function updateUI() {
+            const results = framework.getResults();
+            
+            document.getElementById('total-tests').textContent = results.total;
+            document.getElementById('passed-tests').textContent = results.passed;
+            document.getElementById('failed-tests').textContent = results.failed;
+            document.getElementById('coverage').textContent = `${results.coverage}%`;
+            document.getElementById('duration').textContent = `${results.duration}ms`;
+            
+            const progress = results.total > 0 ? ((results.passed + results.failed) / results.total * 100) : 0;
+            document.getElementById('progress').style.width = `${progress}%`;
+
+            renderTestSuites();
+        }
+
+        function renderTestSuites() {
+            const container = document.getElementById('test-suites');
+            const suites = framework.getSuites();
+            
+            container.innerHTML = suites.map(suite => `
+                <div class="test-suite">
+                    <div class="suite-header" onclick="toggleSuite('${suite.name}')">
+                        <div class="suite-name">${suite.name}</div>
+                        <div class="suite-stats">
+                            ${suite.passed} passed / ${suite.failed} failed / ${suite.total} total
+                        </div>
+                    </div>
+                    <div class="test-list" id="suite-${suite.name.replace(/\s/g, '-')}">
+                        ${suite.tests.map(test => `
+                            <div class="test-case">
+                                <div class="test-name">${test.name}</div>
+                                <div class="test-status">
+                                    <span class="status-badge ${test.status}">${test.status.toUpperCase()}</span>
+                                    ${test.duration ? `<span>${test.duration}ms</span>` : ''}
+                                </div>
+                                ${test.error ? `<div class="test-error">${test.error}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.toggleSuite = (suiteName) => {
+            const element = document.getElementById(`suite-${suiteName.replace(/\s/g, '-')}`);
+            element.classList.toggle('expanded');
+        };
+
+        // Intercept console logs
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        console.log = (...args) => {
+            originalLog(...args);
+            consoleOutput.innerHTML += `<div class="console-log">[LOG] ${args.join(' ')}</div>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        console.error = (...args) => {
+            originalError(...args);
+            consoleOutput.innerHTML += `<div class="console-error">[ERROR] ${args.join(' ')}</div>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        console.warn = (...args) => {
+            originalWarn(...args);
+            consoleOutput.innerHTML += `<div class="console-warn">[WARN] ${args.join(' ')}</div>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        // Event listeners
+        document.getElementById('run-all').addEventListener('click', async () => {
+            document.getElementById('run-all').disabled = true;
+            await framework.runAll();
+            updateUI();
+            document.getElementById('run-all').disabled = false;
+        });
+
+        document.getElementById('run-failed').addEventListener('click', async () => {
+            await framework.runFailed();
+            updateUI();
+        });
+
+        document.getElementById('clear-results').addEventListener('click', () => {
+            framework.clearResults();
+            consoleOutput.innerHTML = '';
+            updateUI();
+        });
+
+        // Initial render
+        updateUI();
+    </script>
+</body>
+</html>

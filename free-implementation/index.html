@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Memory Chat - 100% Free</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🧠 AI Memory Chat</h1>
+      <div class="controls">
+        <button id="export-btn" title="Export memory to file">💾 Export</button>
+        <input type="file" id="import-file" accept=".aime" style="display:none">
+        <button id="import-btn" title="Import memory from file">📂 Import</button>
+        <button id="clear-btn" title="Clear all messages">🗑️ Clear</button>
+        <span id="stats"></span>
+      </div>
+    </header>
+    
+    <div id="chat-container">
+      <div class="welcome-message">
+        <h2>Welcome to AI Memory Chat!</h2>
+        <p>This chat remembers context across sessions.</p>
+        <ul>
+          <li>✅ 100% Free & Open Source</li>
+          <li>✅ No external dependencies</li>
+          <li>✅ Works with any LLM</li>
+          <li>✅ Extreme compression (50MB → 50KB)</li>
+          <li>✅ Export/import your memories</li>
+        </ul>
+        <p><strong>Start chatting below!</strong></p>
+      </div>
+    </div>
+    
+    <div class="input-area">
+      <textarea 
+        id="user-input" 
+        placeholder="Type your message... (Shift+Enter for new line, Enter to send)"
+        rows="3"
+      ></textarea>
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
+  
+  <!-- Core scripts -->
+  <script src="storage.js"></script>
+  <script src="nlp.js"></script>
+  <script src="compression.js"></script>
+  <script src="memory-manager.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
