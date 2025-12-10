@@ -4,7 +4,6 @@
   "description": "Capture and extract AI chat context from VS Code Copilot conversations",
   "version": "1.0.0",
   "publisher": "memoryforge",
-  "icon": "icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },

@@ -2,47 +2,105 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 
-// Import context extractor (same logic as Chrome extension)
-class ContextExtractor {
-    // ... (we'll copy the same extraction logic)
+// Enhanced Context Extractor - Compressed 7-Point Format
+class EnhancedContextExtractor {
     
     extractContext(conversation) {
-        const components = {
-            userIdentity: this.extractUserIdentity(conversation.messages),
-            purpose: this.extractPurpose(conversation),
-            keyInfo: this.extractKeyInformation(conversation),
-            failures: this.extractFailuresAndRules(conversation.messages),
-            preferences: this.extractPreferences(conversation.messages),
-            importantPrompts: this.extractImportantPrompts(conversation.messages),
-            openTasks: this.extractOpenTasks(conversation.messages),
-            metadata: {
-                conversationId: conversation.id,
-                timestamp: new Date().toISOString(),
-                messageCount: conversation.messages.length
-            }
-        };
+        return this.generateDetailedContext(conversation);
+    }
+    
+    generateDetailedContext(conversation) {
+        const title = conversation.title || 'VS Code Conversation';
+        const messages = conversation.messages || [];
         
-        return this.generateContextFile(components);
+        // Extract all 7 components
+        const userStyle = this.extractUserStyle(messages);
+        const purpose = this.extractPurpose(conversation);
+        const keyFacts = this.extractKeyFacts(messages);
+        const corrections = this.findCorrections(messages);
+        const preferences = this.extractPreferences(messages);
+        const importantPrompts = this.extractImportantPrompts(messages);
+        const openTasks = this.extractOpenTasks(messages);
+        
+        let markdown = `# Context: ${title}
+
+## 1. User Communication Style
+${userStyle}
+
+## 2. Purpose & Goal
+${purpose}
+
+## 3. Key Information Summary
+${keyFacts}
+
+## 4. Corrections & Rules to Prevent Failures
+`;
+
+        if (corrections.length > 0) {
+            corrections.forEach((correction, i) => {
+                markdown += `\n**Issue ${i + 1}:**\n`;
+                markdown += `❌ Wrong approach: ${correction.issue}\n`;
+                markdown += `✅ Correct approach: ${correction.lesson}\n`;
+            });
+        } else {
+            markdown += `No corrections - conversation went smoothly.\n`;
+        }
+        
+        markdown += `\n## 5. User Preferences & Requirements
+
+`;
+        markdown += preferences;
+        
+        markdown += `\n## 6. Important Prompts to Preserve
+
+`;
+        markdown += importantPrompts;
+        
+        markdown += `\n## 7. Open Tasks & Next Steps
+
+`;
+        markdown += openTasks;
+        
+        markdown += `\n---
+
+## 📝 Compressed Conversation Summary
+
+`;
+        
+        // COMPRESSED: Only prompts + AI response summaries (NOT full text)
+        markdown += this.generateCompressedSummary(messages);
+        
+        return markdown;
     }
 
-    extractUserIdentity(messages) {
+    extractUserStyle(messages) {
         const userMessages = messages.filter(m => m.role === 'user');
-        const totalLength = userMessages.reduce((sum, m) => sum + m.content.length, 0);
-        const avgLength = userMessages.length > 0 ? Math.round(totalLength / userMessages.length) : 0;
         
-        const styles = [];
-        if (avgLength < 50) styles.push('Concise, direct communication');
-        else if (avgLength > 200) styles.push('Detailed, thorough explanations');
-        else styles.push('Balanced, clear communication');
+        if (userMessages.length === 0) return 'Not enough data';
         
-        const hasCode = userMessages.some(m => m.content.includes('```') || m.content.includes('function') || m.content.includes('const '));
-        if (hasCode) styles.push('Technical, code-focused');
+        const avgLength = userMessages.reduce((sum, m) => sum + m.content.length, 0) / userMessages.length;
+        const hasCode = userMessages.some(m => m.content.includes('```') || /function|const|class|def /i.test(m.content));
+        const questionCount = userMessages.filter(m => m.content.includes('?')).length;
         
-        return {
-            style: styles,
-            messageCount: userMessages.length,
-            avgLength
-        };
+        let style = [];
+        
+        if (avgLength < 50) {
+            style.push('Concise, direct questions');
+        } else if (avgLength > 200) {
+            style.push('Detailed, context-rich communication');
+        } else {
+            style.push('Balanced, clear communication');
+        }
+        
+        if (hasCode) {
+            style.push('Technical, includes code examples');
+        }
+        
+        if (questionCount > userMessages.length * 0.6) {
+            style.push('Question-driven learning approach');
+        }
+        
+        return style.join(', ');
     }
 
     extractPurpose(conversation) {
@@ -56,11 +114,30 @@ class ContextExtractor {
         return 'VS Code conversation';
     }
 
-    extractKeyInformation(conversation) {
-        const keyFacts = [];
-        const messages = conversation.messages;
+    extractKeyFacts(messages) {
+        const facts = [];
         
-        // Extract file names mentioned
+        // Extract main topics discussed
+        const topics = this.extractMainTopics(messages);
+        if (topics) {
+            facts.push(`**Topics:** ${topics.replace(/\n/g, ', ')}`);
+        }
+        
+        // Count exchanges
+        const exchanges = Math.floor(messages.length / 2);
+        facts.push(`**Exchanges:** ${exchanges} back-and-forth conversations`);
+        
+        // Detect if technical/code-heavy
+        const hasCode = messages.some(m => m.content.includes('```'));
+        if (hasCode) {
+            facts.push(`**Nature:** Technical discussion with code examples`);
+        }
+        
+        return facts.join('\n');
+    }
+    
+    extractMainTopics(messages) {
+        // Extract file names
         const filePattern = /[a-zA-Z0-9_-]+\.(js|ts|py|java|cpp|css|html|json|md|txt)/g;
         const files = new Set();
         messages.forEach(m => {
@@ -68,209 +145,218 @@ class ContextExtractor {
             if (matches) matches.forEach(f => files.add(f));
         });
         
+        const topics = [];
         if (files.size > 0) {
-            keyFacts.push(`Files discussed: ${Array.from(files).slice(0, 5).join(', ')}`);
+            topics.push(`Files: ${Array.from(files).slice(0, 3).join(', ')}`);
         }
         
-        // Extract key topics
-        const hasError = messages.some(m => m.content.toLowerCase().includes('error') || m.content.toLowerCase().includes('bug'));
-        if (hasError) keyFacts.push('Debugging/error resolution');
+        // Extract task types
+        const hasError = messages.some(m => /error|bug|issue|problem/i.test(m.content));
+        if (hasError) topics.push('Debugging');
         
-        const hasImplement = messages.some(m => m.content.toLowerCase().includes('implement') || m.content.toLowerCase().includes('create'));
-        if (hasImplement) keyFacts.push('Implementation task');
+        const hasImplement = messages.some(m => /implement|create|build|add/i.test(m.content));
+        if (hasImplement) topics.push('Implementation');
         
-        const hasRefactor = messages.some(m => m.content.toLowerCase().includes('refactor') || m.content.toLowerCase().includes('improve'));
-        if (hasRefactor) keyFacts.push('Code refactoring');
-        
-        return keyFacts.length > 0 ? keyFacts : ['General coding discussion'];
+        return topics.join(', ') || 'General discussion';
     }
 
-    extractFailuresAndRules(messages) {
-        const failures = [];
-        const failureKeywords = ['wrong', 'no', 'not this', 'incorrect', 'failed', 'error', 'bug', 'issue', 'problem', 'doesn\'t work'];
+    findCorrections(messages) {
+        const corrections = [];
+        const failureKeywords = ['wrong', 'no', 'not this', 'incorrect', 'failed', 'error', 'bug', 'issue', 'doesn\'t work'];
         
         for (let i = 0; i < messages.length - 1; i++) {
             const current = messages[i];
             const next = messages[i + 1];
             
             if (current.role === 'assistant' && next.role === 'user') {
-                const hasFailureKeyword = failureKeywords.some(keyword => 
-                    next.content.toLowerCase().includes(keyword)
-                );
+                const hasFailure = failureKeywords.some(kw => next.content.toLowerCase().includes(kw));
                 
-                if (hasFailureKeyword) {
-                    failures.push({
-                        whatHappened: current.content.substring(0, 100),
-                        correction: next.content.substring(0, 100),
-                        rule: this.extractRuleFromCorrection(next.content)
+                if (hasFailure) {
+                    corrections.push({
+                        issue: current.content.substring(0, 80) + '...',
+                        lesson: next.content.substring(0, 100) + '...'
                     });
                 }
             }
         }
         
-        return failures;
-    }
-
-    extractRuleFromCorrection(correctionText) {
-        const text = correctionText.toLowerCase();
-        
-        if (text.includes('should') || text.includes('must')) {
-            const shouldMatch = correctionText.match(/should [^.!?]+[.!?]/i);
-            if (shouldMatch) return shouldMatch[0];
-        }
-        
-        return correctionText.substring(0, 80).trim();
+        return corrections;
     }
 
     extractPreferences(messages) {
-        const always = [];
-        const never = [];
-        const alwaysKeywords = ['always', 'make sure', 'remember to', 'don\'t forget'];
-        const neverKeywords = ['never', 'don\'t', 'avoid', 'stop'];
+        const preferences = {
+            always: [],
+            never: []
+        };
+        
+        const alwaysKeywords = ['always', 'make sure', 'remember to', "don't forget", 'please'];
+        const neverKeywords = ['never', "don't", 'avoid', 'stop', "shouldn't"];
         
         messages.filter(m => m.role === 'user').forEach(msg => {
-            const text = msg.content.toLowerCase();
+            const lower = msg.content.toLowerCase();
             
-            alwaysKeywords.forEach(keyword => {
-                if (text.includes(keyword)) {
-                    const sentence = this.extractSentenceWithKeyword(msg.content, keyword);
-                    if (sentence && !always.includes(sentence)) {
-                        always.push(sentence);
+            alwaysKeywords.forEach(kw => {
+                if (lower.includes(kw)) {
+                    const sentence = this.extractSentence(msg.content, kw);
+                    if (sentence && !preferences.always.includes(sentence)) {
+                        preferences.always.push(sentence);
                     }
                 }
             });
             
-            neverKeywords.forEach(keyword => {
-                if (text.includes(keyword)) {
-                    const sentence = this.extractSentenceWithKeyword(msg.content, keyword);
-                    if (sentence && !never.includes(sentence)) {
-                        never.push(sentence);
+            neverKeywords.forEach(kw => {
+                if (lower.includes(kw)) {
+                    const sentence = this.extractSentence(msg.content, kw);
+                    if (sentence && !preferences.never.includes(sentence)) {
+                        preferences.never.push(sentence);
                     }
                 }
             });
         });
         
-        return { always: always.slice(0, 5), never: never.slice(0, 5) };
+        let result = '';
+        
+        if (preferences.always.length > 0) {
+            result += `**Always:**\n${preferences.always.slice(0, 3).map(p => `- ${p}`).join('\n')}\n\n`;
+        }
+        
+        if (preferences.never.length > 0) {
+            result += `**Never:**\n${preferences.never.slice(0, 3).map(p => `- ${p}`).join('\n')}\n`;
+        }
+        
+        if (!result) {
+            result = 'No specific preferences mentioned.';
+        }
+        
+        return result;
     }
-
-    extractSentenceWithKeyword(text, keyword) {
+    
+    extractSentence(text, keyword) {
         const sentences = text.split(/[.!?]+/);
-        const found = sentences.find(s => s.toLowerCase().includes(keyword));
-        return found ? found.trim().substring(0, 80) : null;
+        const found = sentences.find(s => s.toLowerCase().includes(keyword.toLowerCase()));
+        return found ? found.trim().substring(0, 100) : null;
     }
 
     extractImportantPrompts(messages) {
         const userMessages = messages.filter(m => m.role === 'user');
         
+        // Score each prompt
         const scored = userMessages.map(msg => ({
             content: msg.content,
             score: this.scorePromptImportance(msg, messages)
         }));
         
+        // Sort by score and take top 5
         scored.sort((a, b) => b.score - a.score);
         
-        return scored.slice(0, 3).map(s => s.content.substring(0, 150));
+        const top = scored.slice(0, 5);
+        
+        if (top.length === 0) return 'No prompts captured.';
+        
+        return top.map((p, i) => `${i + 1}. ${p.content.substring(0, 150)}${p.content.length > 150 ? '...' : ''}`).join('\n');
     }
-
-    scorePromptImportance(message, allMessages) {
+    
+    scorePromptImportance(msg, allMessages) {
         let score = 0;
         
         // Length scoring
-        score += message.content.length * 0.1;
+        score += msg.content.length * 0.1;
         
-        // Has question
-        if (message.content.includes('?')) score += 50;
+        // Has question mark
+        if (msg.content.includes('?')) score += 50;
         
-        // Has code block
-        if (message.content.includes('```')) score += 100;
+        // Has code
+        if (msg.content.includes('```') || /function|const|class/i.test(msg.content)) score += 100;
         
-        // Contains error keywords
-        if (/error|bug|issue|problem|wrong/i.test(message.content)) score += 80;
+        // Contains keywords
+        if (/explain|how|what|why|describe/i.test(msg.content)) score += 40;
         
-        // Contains implementation keywords
-        if (/create|implement|add|build|make/i.test(message.content)) score += 60;
+        // Is a correction
+        if (/wrong|no|not this|incorrect|fix/i.test(msg.content)) score += 80;
         
         return score;
     }
 
     extractOpenTasks(messages) {
+        const recent = messages.slice(-5);
         const tasks = [];
-        const recentMessages = messages.slice(-5);
-        const taskKeywords = ['todo', 'need to', 'should', 'must', 'can you', 'please', 'next'];
         
-        recentMessages.filter(m => m.role === 'user').forEach(msg => {
-            const text = msg.content.toLowerCase();
-            const hasTaskKeyword = taskKeywords.some(kw => text.includes(kw));
+        const taskKeywords = ['todo', 'need to', 'should', 'can you', 'please', 'next', 'also'];
+        
+        recent.filter(m => m.role === 'user').forEach(msg => {
+            const hasTaskKeyword = taskKeywords.some(kw => msg.content.toLowerCase().includes(kw));
             
-            if (hasTaskKeyword && msg.content.includes('?')) {
-                tasks.push(msg.content.substring(0, 100).trim());
+            if (hasTaskKeyword || msg.content.includes('?')) {
+                tasks.push(msg.content.substring(0, 100));
             }
         });
         
-        return tasks.slice(0, 3);
+        if (tasks.length === 0) return 'All tasks completed.';
+        
+        return tasks.slice(0, 3).map((t, i) => `${i + 1}. ${t}${t.length >= 100 ? '...' : ''}`).join('\n');
     }
-
-    generateContextFile(components) {
-        const { userIdentity, purpose, keyInfo, failures, preferences, importantPrompts, openTasks, metadata } = components;
+    
+    generateCompressedSummary(messages) {
+        let summary = '';
+        let count = 1;
         
-        let markdown = `# Context: ${purpose.substring(0, 60)}
-
-## 1. User Style
-${userIdentity.style.join(', ')}
-
-## 2. Goal
-${purpose}
-
-## 3. Key Facts
-${keyInfo.slice(0, 5).join('; ')}
-
-## 4. Corrections
-`;
-
-        if (failures.length > 0) {
-            failures.forEach((failure, i) => {
-                markdown += `**${i + 1}.** ${failure.correction}\n`;
-                markdown += `   Rule: ${failure.rule}\n\n`;
-            });
-        } else {
-            markdown += `None\n\n`;
-        }
-
-        markdown += `## 5. Preferences
-`;
-        
-        if (preferences.always.length > 0 || preferences.never.length > 0) {
-            if (preferences.always.length > 0) {
-                markdown += `Always: ${preferences.always.join(', ')}\n`;
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            
+            if (msg.role === 'user') {
+                summary += `\n**Q${count}:** ${msg.content.substring(0, 150)}${msg.content.length > 150 ? '...' : ''}\n`;
+                
+                // Find AI response
+                if (i + 1 < messages.length && messages[i + 1].role === 'assistant') {
+                    const aiMsg = messages[i + 1];
+                    const aiSummary = this.compressAIResponse(aiMsg.content);
+                    summary += `**A${count}:** ${aiSummary}\n`;
+                    i++; // Skip next
+                }
+                
+                count++;
             }
-            if (preferences.never.length > 0) {
-                markdown += `Never: ${preferences.never.join(', ')}\n`;
-            }
-        } else {
-            markdown += `None specified\n`;
         }
-
-        markdown += `\n## 6. Key Messages
-`;
         
-        if (importantPrompts.length > 0) {
-            importantPrompts.forEach((prompt, i) => {
-                markdown += `${i + 1}. ${prompt}\n`;
-            });
-        } else {
-            markdown += `None\n`;
-        }
-
-        markdown += `\n## 7. Open Tasks
-`;
+        return summary;
+    }
+    
+    compressAIResponse(response) {
+        // COMPRESS AI response intelligently
         
-        if (openTasks.length > 0) {
-            openTasks.forEach(task => markdown += `- ${task}\n`);
-        } else {
-            markdown += `None\n`;
+        // If short, return as-is
+        if (response.length <= 100) {
+            return response;
         }
-
-        return markdown;
+        
+        // Extract key info
+        const hasCode = response.includes('```');
+        const hasLists = /^[-*]\s/m.test(response) || /^\d+\.\s/m.test(response);
+        const sentences = response.split(/[.!?]+/).filter(s => s.trim().length > 10);
+        
+        let compressed = '';
+        
+        // Take first sentence as main point
+        if (sentences.length > 0) {
+            compressed = sentences[0].trim() + '.';
+        }
+        
+        // Add structure notes
+        if (hasCode) {
+            const codeCount = (response.match(/```/g) || []).length / 2;
+            compressed += ` [Includes ${codeCount} code example${codeCount > 1 ? 's' : ''}]`;
+        }
+        
+        if (hasLists) {
+            const listItems = (response.match(/^[-*•]\s/gm) || []).length + (response.match(/^\d+\.\s/gm) || []).length;
+            compressed += ` [${listItems} point list]`;
+        }
+        
+        if (sentences.length > 3) {
+            compressed += ` [+${sentences.length - 1} more details]`;
+        }
+        
+        return compressed;
     }
 }
 
@@ -280,7 +366,7 @@ class ConversationManager {
         this.context = context;
         this.conversations = [];
         this.currentConversation = null;
-        this.extractor = new ContextExtractor();
+        this.extractor = new EnhancedContextExtractor();
         this.loadConversations();
     }
 
