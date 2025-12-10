@@ -265,20 +265,25 @@ ${messages.map((msg, i) => `  <turn index="${i}" role="${msg.role}">
         let optimalContext = null;
         if (typeof EnhancedContextExtractor !== 'undefined') {
             try {
+                console.log('✅ EnhancedContextExtractor found, generating 7-point context...');
                 const extractor = new EnhancedContextExtractor();
                 optimalContext = extractor.extractContext(conversation);
+                console.log('✅ Generated optimalContext:', optimalContext ? optimalContext.substring(0, 100) + '...' : 'NULL');
             } catch (e) {
-                console.warn('Enhanced context extraction failed:', e);
+                console.error('❌ Enhanced context extraction failed:', e);
                 // Fallback to old extractor
                 if (typeof ContextExtractor !== 'undefined') {
                     try {
                         const oldExtractor = new ContextExtractor();
                         optimalContext = oldExtractor.extractContext(conversation);
+                        console.log('✅ Used fallback ContextExtractor');
                     } catch (e2) {
-                        console.warn('Context extraction failed:', e2);
+                        console.error('❌ Fallback context extraction also failed:', e2);
                     }
                 }
             }
+        } else {
+            console.error('❌ EnhancedContextExtractor not found! Script may not have loaded.');
         }
 
         return {

@@ -312,14 +312,26 @@ function copyConversation(conversationId) {
     }, (response) => {
         if (response && response.conversation) {
             const conv = response.conversation;
-            // Use optimal 7-point context format (best for LLMs)
-            const text = conv.summary.optimalContext || conv.summary.contextPrompt;
             
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('✅ Copied optimal context (7-point format)!');
-            }).catch(() => {
-                showToast('❌ Copy failed');
-            });
+            // ALWAYS use optimalContext (7-point format)
+            if (conv.summary.optimalContext) {
+                const text = conv.summary.optimalContext;
+                console.log('✅ Using 7-point optimalContext format:', text.substring(0, 100) + '...');
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('✅ Copied 7-point context!');
+                }).catch(() => {
+                    showToast('❌ Copy failed');
+                });
+            } else {
+                // If optimalContext is missing, there's a problem
+                console.error('❌ optimalContext is NULL! Falling back to contextPrompt (old format)');
+                const text = conv.summary.contextPrompt || 'Error: No context available';
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('⚠️ Copied (old format - check console)');
+                }).catch(() => {
+                    showToast('❌ Copy failed');
+                });
+            }
         }
     });
 }
@@ -452,10 +464,17 @@ function showConversationModal(conversation) {
     
     // Copy optimal context
     document.getElementById('mf-detail-copy-optimal').addEventListener('click', () => {
-        const optimalText = conversation.summary.optimalContext || conversation.summary.contextPrompt;
-        navigator.clipboard.writeText(optimalText).then(() => {
-            showToast('✅ Copied 7-point context to clipboard!');
-        });
+        if (conversation.summary.optimalContext) {
+            navigator.clipboard.writeText(conversation.summary.optimalContext).then(() => {
+                showToast('✅ Copied 7-point context to clipboard!');
+            });
+        } else {
+            console.error('❌ optimalContext is NULL! Using fallback.');
+            const fallbackText = conversation.summary.contextPrompt || 'Error: No context available';
+            navigator.clipboard.writeText(fallbackText).then(() => {
+                showToast('⚠️ Copied (old format - regenerate conversation)');
+            });
+        }
     });
     
     // Copy XML
@@ -467,7 +486,10 @@ function showConversationModal(conversation) {
     
     // Download MD
     document.getElementById('mf-detail-download-md').addEventListener('click', () => {
-        const mdContent = conversation.summary.optimalContext || conversation.summary.contextPrompt;
+        const mdContent = conversation.summary.optimalContext || conversation.summary.contextPrompt || 'Error: No context available';
+        if (!conversation.summary.optimalContext) {
+            console.error('❌ optimalContext is NULL! Downloaded fallback format.');
+        }
         const blob = new Blob([mdContent], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
