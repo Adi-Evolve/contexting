@@ -418,13 +418,17 @@ function activate(context) {
     treeProvider = new ConversationTreeProvider(conversationManager);
     vscode.window.registerTreeDataProvider('memoryforge.conversations', treeProvider);
 
-    // Monitor Copilot Chat
+    // AUTOMATIC CAPTURE: Monitor GitHub Copilot Chat
     const autoCapture = vscode.workspace.getConfiguration('memoryforge').get('autoCapture', true);
+    
     if (autoCapture) {
-        // Listen for chat panel changes
-        vscode.window.onDidChangeActiveTextEditor(() => {
-            // Auto-capture logic
-        });
+        console.log('🎯 MemoryForge: Auto-capture enabled for Copilot Chat');
+        
+        // Listen to chat participant API
+        setupCopilotChatMonitoring(context);
+        
+        // Also monitor file changes for chat history
+        setupFileSystemMonitoring(context);
     }
 
     // Command: Capture current conversation
@@ -653,6 +657,185 @@ function formatConversationForDisplay(conversation) {
     });
 
     return output;
+}
+
+// AUTOMATIC MONITORING: GitHub Copilot Chat
+function setupCopilotChatMonitoring(context) {
+    // Monitor chat requests and responses
+    try {
+        // Listen to language model chat requests (VS Code API)
+        const chatRequestHandler = vscode.chat.registerChatRequestHandler(
+            'memoryforge',
+            async (request, context, stream, token) => {
+                // Capture user message
+                const userMessage = request.prompt;
+                conversationManager.addMessage('user', userMessage);
+                
+                console.log('✅ Captured user message:', userMessage.substring(0, 50));
+                
+                // This handler doesn't respond, just captures
+                return { metadata: { captured: true } };
+            }
+        );
+        
+        context.subscriptions.push(chatRequestHandler);
+    } catch (error) {
+        console.log('⚠️ Chat API not available, using fallback monitoring');
+        setupFallbackMonitoring(context);
+    }
+}
+
+// FALLBACK: Monitor clipboard and active editor for chat patterns
+function setupFallbackMonitoring(context) {
+    // Watch for changes in active text editor
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument((event) => {
+            const doc = event.document;
+            
+            // Check if this is a chat-related document
+            if (doc.uri.scheme === 'vscode-chat' || 
+                doc.fileName.includes('copilot') || 
+                doc.fileName.includes('chat')) {
+                
+                // Extract conversation from document changes
+                const text = doc.getText();
+                const messages = extractMessagesFromText(text);
+                
+                if (messages.length > 0) {
+                    messages.forEach(msg => {
+                        conversationManager.addMessage(msg.role, msg.content);
+                    });
+                    
+                    console.log(`✅ Auto-captured ${messages.length} messages from chat`);
+                }
+            }
+        })
+    );
+    
+    // Monitor clipboard for copied chat conversations
+    let lastClipboard = '';
+    setInterval(async () => {
+        try {
+            const currentClipboard = await vscode.env.clipboard.readText();
+            
+            if (currentClipboard !== lastClipboard && currentClipboard.length > 50) {
+                lastClipboard = currentClipboard;
+                
+                // Check if clipboard contains chat conversation
+                if (isChatConversation(currentClipboard)) {
+                    const messages = extractMessagesFromText(currentClipboard);
+                    
+                    if (messages.length >= 2) {
+                        conversationManager.startNewConversation();
+                        messages.forEach(msg => {
+                            conversationManager.addMessage(msg.role, msg.content);
+                        });
+                        conversationManager.saveCurrentConversation();
+                        treeProvider.refresh();
+                        
+                        vscode.window.showInformationMessage(
+                            `🧠 MemoryForge: Auto-captured ${messages.length} messages`
+                        );
+                    }
+                }
+            }
+        } catch (error) {
+            // Clipboard access error
+        }
+    }, 2000); // Check every 2 seconds
+}
+
+// AUTOMATIC: Monitor file system for chat history files
+function setupFileSystemMonitoring(context) {
+    // VS Code stores chat history in workspace storage
+    const chatHistoryPattern = new vscode.RelativePattern(
+        vscode.workspace.workspaceFolders?.[0] || vscode.Uri.file(process.env.HOME || ''),
+        '**/.vscode/chat_history*.json'
+    );
+    
+    const watcher = vscode.workspace.createFileSystemWatcher(chatHistoryPattern);
+    
+    watcher.onDidChange(async (uri) => {
+        try {
+            const content = await vscode.workspace.fs.readFile(uri);
+            const text = Buffer.from(content).toString('utf8');
+            const data = JSON.parse(text);
+            
+            // Process chat history
+            if (data.messages && Array.isArray(data.messages)) {
+                conversationManager.startNewConversation();
+                data.messages.forEach(msg => {
+                    conversationManager.addMessage(
+                        msg.role || 'user',
+                        msg.content || msg.text || ''
+                    );
+                });
+                conversationManager.saveCurrentConversation();
+                treeProvider.refresh();
+                
+                console.log('✅ Auto-captured conversation from file system');
+            }
+        } catch (error) {
+            console.log('Chat history file monitoring error:', error);
+        }
+    });
+    
+    context.subscriptions.push(watcher);
+}
+
+// Helper: Detect if text is a chat conversation
+function isChatConversation(text) {
+    const chatIndicators = [
+        /^(User|Human|You):/im,
+        /^(Assistant|AI|Copilot|GitHub Copilot):/im,
+        /(User|You|Human).*(Assistant|AI|Copilot)/is,
+        /\n\s*>\s*.+\n/m // Quoted text
+    ];
+    
+    return chatIndicators.some(pattern => pattern.test(text));
+}
+
+// Helper: Extract messages from text
+function extractMessagesFromText(text) {
+    const messages = [];
+    const lines = text.split('\n');
+    let currentRole = null;
+    let currentContent = [];
+    
+    for (const line of lines) {
+        // Detect role changes
+        if (line.match(/^(User|Human|You):/i)) {
+            if (currentRole && currentContent.length > 0) {
+                messages.push({
+                    role: currentRole,
+                    content: currentContent.join('\n').trim()
+                });
+            }
+            currentRole = 'user';
+            currentContent = [line.replace(/^(User|Human|You):/i, '').trim()];
+        } else if (line.match(/^(Assistant|AI|Copilot|GitHub Copilot):/i)) {
+            if (currentRole && currentContent.length > 0) {
+                messages.push({
+                    role: currentRole,
+                    content: currentContent.join('\n').trim()
+                });
+            }
+            currentRole = 'assistant';
+            currentContent = [line.replace(/^(Assistant|AI|Copilot|GitHub Copilot):/i, '').trim()];
+        } else if (currentRole) {
+            currentContent.push(line);
+        }
+    }
+    
+    // Add last message
+    if (currentRole && currentContent.length > 0) {
+        messages.push({
+            role: currentRole,
+            content: currentContent.join('\n').trim()
+        });
+    }
+    
+    return messages.filter(m => m.content.length > 0);
 }
 
 function deactivate() {

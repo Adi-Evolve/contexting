@@ -20,10 +20,19 @@
     "chat"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onLanguageModelAccess:*"
   ],
   "main": "./extension.js",
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "memoryforge",
+        "name": "MemoryForge",
+        "description": "Automatically captures your chat conversations",
+        "isSticky": true
+      }
+    ],
     "commands": [
       {
         "command": "memoryforge.captureConversation",

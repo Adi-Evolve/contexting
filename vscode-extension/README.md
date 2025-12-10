@@ -4,10 +4,11 @@ Extract and preserve AI conversation context from VS Code Copilot chats.
 
 ## Features
 
-✨ **Capture Conversations**
-- Automatically detect and capture Copilot Chat conversations
-- Manual capture from selected text or active document
-- Support for multi-turn conversations
+✨ **100% Automatic Capture** 🚀
+- **Zero manual work** - Just chat normally with GitHub Copilot or Gemini
+- Automatically monitors all chat conversations in real-time
+- Captures every message as you type
+- Works in background - you don't have to do anything!
 
 🎯 **Optimal Context Extraction**
 - Converts conversations to 7-point LLM-optimized format
@@ -28,12 +29,20 @@ Extract and preserve AI conversation context from VS Code Copilot chats.
 
 ## Usage
 
-### Capture Current Conversation
+### Automatic Mode (Default) ⚡
 
-1. Open Copilot Chat or any document with conversation
-2. Select the conversation text (or leave blank for full document)
-3. Run command: `MemoryForge: Capture Current Conversation`
-4. ✅ Conversation saved!
+**Nothing to do!** Just use VS Code normally:
+
+1. Open GitHub Copilot Chat (`Ctrl+Shift+I`)
+2. Chat with Copilot as usual
+3. MemoryForge **automatically captures** every message in the background
+4. View captured conversations in MemoryForge sidebar (Activity Bar)
+5. Export anytime with one click!
+
+**Supported:**
+- ✅ GitHub Copilot Chat (real-time monitoring)
+- ✅ Gemini AI in VS Code (clipboard monitoring)
+- ✅ Any chat copied to clipboard (auto-detect)
 
 ### Export as Optimal Context
 

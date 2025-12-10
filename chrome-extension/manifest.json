@@ -28,13 +28,13 @@
         "https://chatgpt.com/*"
       ],
       "js": ["context-extractor.js", "conversation-tracker.js", "content-chatgpt-v2.js"],
-      "css": ["styles-v3.css"],
+      "css": ["styles-v2.css"],
       "run_at": "document_end"
     },
     {
       "matches": ["https://claude.ai/*"],
       "js": ["context-extractor.js", "conversation-tracker.js", "content-claude.js"],
-      "css": ["styles-v3.css"],
+      "css": ["styles-v2.css"],
       "run_at": "document_end"
     }
   ],
