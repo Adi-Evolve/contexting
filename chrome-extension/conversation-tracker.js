@@ -149,12 +149,24 @@ ${messages.map((msg, i) => `  <turn index="${i}" role="${msg.role}">
         // Create a semantic summary
         const semanticSummary = this.createSemanticSummary(messages);
 
+        // 🆕 Generate 7-point optimal context format using ContextExtractor
+        let optimalContext = null;
+        if (typeof ContextExtractor !== 'undefined') {
+            try {
+                const extractor = new ContextExtractor();
+                optimalContext = extractor.extractContext(conversation);
+            } catch (e) {
+                console.warn('Context extraction failed:', e);
+            }
+        }
+
         return {
             fullContext: fullContext,           // OpenAI API format
             narrative: narrative,               // Plain narrative
             xml: xmlFormat,                     // Claude XML format
             semantic: semanticSummary,          // Semantic keywords/topics
-            contextPrompt: this.createContextPrompt(conversation)  // Ready-to-use prompt
+            contextPrompt: this.createContextPrompt(conversation),  // Ready-to-use prompt
+            optimalContext: optimalContext      // 🆕 7-point format (best for LLMs)
         };
     }
 

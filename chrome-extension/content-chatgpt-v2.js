@@ -255,7 +255,7 @@ function displayConversations(conversations) {
     });
 }
 
-// Copy conversation in LLM-ready format
+// Copy conversation in LLM-ready format (optimal 7-point structure)
 function copyConversation(conversationId) {
     chrome.runtime.sendMessage({
         action: 'getConversation',
@@ -263,11 +263,11 @@ function copyConversation(conversationId) {
     }, (response) => {
         if (response && response.conversation) {
             const conv = response.conversation;
-            // Use context prompt (LLM-friendly format)
-            const text = conv.summary.contextPrompt;
+            // Use optimal 7-point context format (best for LLMs)
+            const text = conv.summary.optimalContext || conv.summary.contextPrompt;
             
             navigator.clipboard.writeText(text).then(() => {
-                showToast('✅ Copied conversation context!');
+                showToast('✅ Copied optimal context (7-point format)!');
             }).catch(() => {
                 showToast('❌ Copy failed');
             });
@@ -343,8 +343,9 @@ function showConversationModal(conversation) {
                 `).join('')}
             </div>
             <div class="mf-modal-footer">
-                <button class="mf-modal-btn" id="mf-copy-full">📋 Copy Full Context</button>
-                <button class="mf-modal-btn" id="mf-copy-xml">📋 Copy as XML</button>
+                <button class="mf-modal-btn mf-btn-primary" id="mf-copy-optimal">🎯 Copy Optimal Context</button>
+                <button class="mf-modal-btn" id="mf-copy-xml">📋 Copy XML</button>
+                <button class="mf-modal-btn" id="mf-download-md">📄 Download MD</button>
                 <button class="mf-modal-btn" id="mf-download-json">💾 Download JSON</button>
             </div>
         </div>
@@ -358,14 +359,27 @@ function showConversationModal(conversation) {
     });
     
     // Copy buttons
-    document.getElementById('mf-copy-full').addEventListener('click', () => {
-        navigator.clipboard.writeText(conversation.summary.contextPrompt);
-        showToast('✅ Copied context prompt');
+    document.getElementById('mf-copy-optimal').addEventListener('click', () => {
+        const optimalText = conversation.summary.optimalContext || conversation.summary.contextPrompt;
+        navigator.clipboard.writeText(optimalText);
+        showToast('✅ Copied optimal 7-point context!');
     });
     
     document.getElementById('mf-copy-xml').addEventListener('click', () => {
         navigator.clipboard.writeText(conversation.summary.xml);
         showToast('✅ Copied XML format');
+    });
+    
+    document.getElementById('mf-download-md').addEventListener('click', () => {
+        const mdContent = conversation.summary.optimalContext || conversation.summary.contextPrompt;
+        const blob = new Blob([mdContent], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `context_${conversation.id}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('✅ Downloaded optimal context as MD');
     });
     
     document.getElementById('mf-download-json').addEventListener('click', () => {
@@ -376,7 +390,7 @@ function showConversationModal(conversation) {
         a.download = `conversation_${conversation.id}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        showToast('✅ Downloaded');
+        showToast('✅ Downloaded JSON');
     });
     
     // Click outside to close
