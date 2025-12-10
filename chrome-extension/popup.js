@@ -118,16 +118,29 @@ async function loadStats() {
 
             // Update status
             let status = 'Ready';
+            const statusEl = document.getElementById('status');
+            const statusCard = statusEl.closest('.stat-card');
+            
+            // Reset status styles
+            statusCard.classList.remove('alert');
+            statusEl.style.color = ''; // Reset to default CSS color
+
             if (stats.activeCount >= stats.limit) {
                 status = 'Storage Full';
+                statusCard.classList.add('alert');
+                statusEl.style.color = 'var(--primary-red)';
             } else if (percent >= 80) {
                 status = 'Running Low';
+                statusCard.classList.add('alert');
+                statusEl.style.color = 'var(--primary-red)';
+            } else {
+                statusEl.style.color = 'var(--primary-blue)';
             }
-            document.getElementById('status').textContent = status;
+            statusEl.textContent = status;
 
             // Show warning if near limit
             if (percent >= 90) {
-                showNotification('Storage almost full! Please export and clear old conversations.');
+                showNotification('Storage almost full! Please export and clear old conversations.', 'error');
             }
         }
     } catch (error) {
@@ -315,16 +328,45 @@ function formatBytes(bytes) {
 }
 
 /**
- * Show notification (simple alert for popup)
+ * Show toast notification
  */
-function showNotification(message) {
-    // Could use a toast notification library here
-    // For now, just update status temporarily
-    const statusEl = document.getElementById('status');
-    const originalStatus = statusEl.textContent;
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
     
-    statusEl.textContent = message;
+    // Icon based on type
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '⚠️';
+    
+    toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+    
+    container.appendChild(toast);
+    
+    // Remove after 3 seconds
     setTimeout(() => {
-        loadStats(); // Reload to restore original status
+        toast.style.animation = 'fadeOut 0.3s ease-out forwards';
+        setTimeout(() => {
+            if (container.contains(toast)) {
+                container.removeChild(toast);
+            }
+        }, 300);
     }, 3000);
+}
+
+/**
+ * Show notification (wrapper for toast)
+ */
+function showNotification(message, type = null) {
+    if (!type) {
+        // Determine type based on message content if not provided
+        type = 'info';
+        if (message.includes('success') || message.includes('✅')) type = 'success';
+        if (message.includes('fail') || message.includes('Error') || message.includes('❌')) type = 'error';
+    }
+    
+    showToast(message, type);
 }
