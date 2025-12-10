@@ -12,8 +12,8 @@ const ToolUsageTracker = require('./tool-usage-tracker.js');
 const ErrorHandler = require('./error-handler.js');
 const StorageManager = require('./storage-manager.js');
 
-// Load original context extractor
-const EnhancedContextExtractorBase = require('./extension.js');
+// Load enhanced context extractor v2 (7-point format)
+const EnhancedContextExtractor = require('./context-extractor-v2.js');
 
 let errorHandler;
 let storageManager;
@@ -207,9 +207,18 @@ async function viewConversations() {
  */
 async function showConversationDetails(conversation) {
     try {
-        // Generate context using enhanced extractor
-        const extractor = new EnhancedContextExtractorBase.EnhancedContextExtractor();
+        // Generate context using enhanced extractor v2 (7-point format)
+        console.log('✅ Using EnhancedContextExtractor v2 for 7-point format...');
+        const extractor = new EnhancedContextExtractor();
         const context = extractor.extractContext(conversation);
+        
+        if (!context) {
+            console.error('❌ Context extraction returned null/undefined!');
+            vscode.window.showErrorMessage('Failed to generate context');
+            return;
+        }
+        
+        console.log('✅ Generated context:', context.substring(0, 100) + '...');
 
         // Create a new document with the context
         const doc = await vscode.workspace.openTextDocument({
@@ -218,7 +227,9 @@ async function showConversationDetails(conversation) {
         });
 
         await vscode.window.showTextDocument(doc, { preview: false });
+        vscode.window.showInformationMessage('✅ Generated 7-point context summary!');
     } catch (error) {
+        console.error('❌ Context extraction failed:', error);
         errorHandler.handleVSCodeError('showConversationDetails', error);
     }
 }

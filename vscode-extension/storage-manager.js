@@ -20,6 +20,24 @@ class StorageManager {
                 conversation.savedAt = Date.now();
             }
 
+            // Generate 7-point summary if not present
+            if (!conversation.summary || !conversation.summary.optimalContext) {
+                console.log('✅ Generating 7-point context summary...');
+                try {
+                    const EnhancedContextExtractor = require('./context-extractor-v2.js');
+                    const extractor = new EnhancedContextExtractor();
+                    const optimalContext = extractor.extractContext(conversation);
+                    
+                    if (!conversation.summary) {
+                        conversation.summary = {};
+                    }
+                    conversation.summary.optimalContext = optimalContext;
+                    console.log('✅ Generated optimalContext:', optimalContext ? optimalContext.substring(0, 100) + '...' : 'NULL');
+                } catch (e) {
+                    console.error('❌ Failed to generate optimalContext:', e);
+                }
+            }
+
             // Get existing conversations
             const conversations = await this.getAllConversations();
             
