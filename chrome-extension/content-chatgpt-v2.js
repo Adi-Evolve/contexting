@@ -363,88 +363,131 @@ function viewConversation(conversationId) {
     });
 }
 
-// Show conversation in modal
+// Show conversation in detailed modal - REBUILT FROM SCRATCH
 function showConversationModal(conversation) {
-    // Remove existing modal
-    const existing = document.getElementById('mf-modal');
+    // Remove any existing modal
+    const existing = document.getElementById('mf-detail-modal-overlay');
     if (existing) existing.remove();
     
+    // Check if sidebar is in dark mode
+    const sidebar = document.getElementById('memoryforge-sidebar');
+    const isDarkMode = sidebar && sidebar.classList.contains('mf-dark-mode');
+    
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'mf-detail-modal-overlay';
+    overlay.className = `mf-detail-modal-overlay${isDarkMode ? ' mf-dark-mode' : ''}`;
+    
+    // Create modal container
     const modal = document.createElement('div');
-    modal.id = 'mf-modal';
-    modal.className = 'mf-modal';
+    modal.className = 'mf-detail-modal';
+    
+    // Build modal HTML
     modal.innerHTML = `
-        <div class="mf-modal-content">
-            <div class="mf-modal-header">
-                <h2>${escapeHtml(conversation.title || 'Conversation')}</h2>
-                <button class="mf-modal-close">×</button>
+        <div class="mf-detail-header">
+            <div class="mf-detail-title-section">
+                <h2 class="mf-detail-title">${escapeHtml(conversation.title || 'Conversation Details')}</h2>
+                <div class="mf-detail-meta">
+                    <span class="mf-detail-meta-item">📅 ${formatTime(conversation.startTime)}</span>
+                    <span class="mf-detail-meta-item">💬 ${conversation.messageCount} messages</span>
+                    <span class="mf-detail-meta-item">🪙 ${conversation.tokens} tokens</span>
+                </div>
             </div>
-            <div class="mf-modal-info">
-                <span>📅 ${formatTime(conversation.startTime)}</span>
-                <span>💬 ${conversation.messageCount} messages</span>
-                <span>🪙 ~${conversation.tokens} tokens</span>
-            </div>
-            <div class="mf-modal-body">
-                ${conversation.messages.map(msg => `
-                    <div class="mf-msg-${msg.role}">
-                        <strong>${msg.role === 'user' ? '👤 You' : '🤖 Assistant'}:</strong>
-                        <p>${escapeHtml(msg.content)}</p>
+            <button class="mf-detail-close" id="mf-close-detail">×</button>
+        </div>
+        
+        <div class="mf-detail-messages">
+            ${conversation.messages.map(msg => `
+                <div class="mf-detail-message mf-detail-message-${msg.role}">
+                    <div class="mf-detail-message-header">
+                        <span class="mf-detail-message-role">${msg.role === 'user' ? '👤 You' : '🤖 Assistant'}</span>
                     </div>
-                `).join('')}
-            </div>
-            <div class="mf-modal-footer">
-                <button class="mf-modal-btn mf-btn-primary" id="mf-copy-optimal">🎯 Copy Optimal Context</button>
-                <button class="mf-modal-btn" id="mf-copy-xml">📋 Copy XML</button>
-                <button class="mf-modal-btn" id="mf-download-md">📄 Download MD</button>
-                <button class="mf-modal-btn" id="mf-download-json">💾 Download JSON</button>
-            </div>
+                    <div class="mf-detail-message-content">${escapeHtml(msg.content)}</div>
+                </div>
+            `).join('')}
+        </div>
+        
+        <div class="mf-detail-actions">
+            <button class="mf-detail-btn mf-detail-btn-primary" id="mf-detail-copy-optimal">
+                <span class="mf-detail-btn-icon">🎯</span>
+                <span class="mf-detail-btn-text">Copy Context</span>
+            </button>
+            <button class="mf-detail-btn" id="mf-detail-copy-xml">
+                <span class="mf-detail-btn-icon">📋</span>
+                <span class="mf-detail-btn-text">Copy XML</span>
+            </button>
+            <button class="mf-detail-btn" id="mf-detail-download-md">
+                <span class="mf-detail-btn-icon">📄</span>
+                <span class="mf-detail-btn-text">Download MD</span>
+            </button>
+            <button class="mf-detail-btn" id="mf-detail-download-json">
+                <span class="mf-detail-btn-icon">💾</span>
+                <span class="mf-detail-btn-text">Download JSON</span>
+            </button>
         </div>
     `;
     
-    document.body.appendChild(modal);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Event listeners
+    const closeModal = () => overlay.remove();
     
     // Close button
-    modal.querySelector('.mf-modal-close').addEventListener('click', () => {
-        modal.remove();
+    document.getElementById('mf-close-detail').addEventListener('click', closeModal);
+    
+    // Click outside to close
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
     });
     
-    // Copy buttons
-    document.getElementById('mf-copy-optimal').addEventListener('click', () => {
+    // Escape key to close
+    const escapeHandler = (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    };
+    document.addEventListener('keydown', escapeHandler);
+    
+    // Copy optimal context
+    document.getElementById('mf-detail-copy-optimal').addEventListener('click', () => {
         const optimalText = conversation.summary.optimalContext || conversation.summary.contextPrompt;
-        navigator.clipboard.writeText(optimalText);
-        showToast('✅ Copied optimal 7-point context!');
+        navigator.clipboard.writeText(optimalText).then(() => {
+            showToast('✅ Copied 7-point context to clipboard!');
+        });
     });
     
-    document.getElementById('mf-copy-xml').addEventListener('click', () => {
-        navigator.clipboard.writeText(conversation.summary.xml);
-        showToast('✅ Copied XML format');
+    // Copy XML
+    document.getElementById('mf-detail-copy-xml').addEventListener('click', () => {
+        navigator.clipboard.writeText(conversation.summary.xml).then(() => {
+            showToast('✅ Copied XML format to clipboard!');
+        });
     });
     
-    document.getElementById('mf-download-md').addEventListener('click', () => {
+    // Download MD
+    document.getElementById('mf-detail-download-md').addEventListener('click', () => {
         const mdContent = conversation.summary.optimalContext || conversation.summary.contextPrompt;
         const blob = new Blob([mdContent], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `context_${conversation.id}.md`;
+        a.download = `void_context_${conversation.id}.md`;
         a.click();
         URL.revokeObjectURL(url);
-        showToast('✅ Downloaded optimal context as MD');
+        showToast('✅ Downloaded context as Markdown!');
     });
     
-    document.getElementById('mf-download-json').addEventListener('click', () => {
+    // Download JSON
+    document.getElementById('mf-detail-download-json').addEventListener('click', () => {
         const blob = new Blob([JSON.stringify(conversation, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `conversation_${conversation.id}.json`;
+        a.download = `void_conversation_${conversation.id}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        showToast('✅ Downloaded JSON');
-    });
-    
-    // Click outside to close
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
+        showToast('✅ Downloaded conversation as JSON!');
     });
 }
 
