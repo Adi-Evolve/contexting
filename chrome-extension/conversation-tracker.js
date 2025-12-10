@@ -149,14 +149,23 @@ ${messages.map((msg, i) => `  <turn index="${i}" role="${msg.role}">
         // Create a semantic summary
         const semanticSummary = this.createSemanticSummary(messages);
 
-        // 🆕 Generate 7-point optimal context format using ContextExtractor
+        // 🆕 Generate detailed context format using EnhancedContextExtractor
         let optimalContext = null;
-        if (typeof ContextExtractor !== 'undefined') {
+        if (typeof EnhancedContextExtractor !== 'undefined') {
             try {
-                const extractor = new ContextExtractor();
+                const extractor = new EnhancedContextExtractor();
                 optimalContext = extractor.extractContext(conversation);
             } catch (e) {
-                console.warn('Context extraction failed:', e);
+                console.warn('Enhanced context extraction failed:', e);
+                // Fallback to old extractor
+                if (typeof ContextExtractor !== 'undefined') {
+                    try {
+                        const oldExtractor = new ContextExtractor();
+                        optimalContext = oldExtractor.extractContext(conversation);
+                    } catch (e2) {
+                        console.warn('Context extraction failed:', e2);
+                    }
+                }
             }
         }
 
