@@ -140,6 +140,10 @@ function handleNewMessage(node) {
                 }
             }
         }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn('🔄 Extension context lost. Please refresh the page.');
+                return;
+            }
             if (response?.success) {
                 console.log('✅ Memory stored:', content.substring(0, 50) + '...');
                 updateStats();
@@ -176,7 +180,14 @@ function handleSearch(query, filter = 'all') {
             chrome.runtime.sendMessage({
                 action: 'getRecentMemories',
                 limit: 20
-            }, displayResults);
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn('🔄 Extension context invalidated. Please refresh the page.');
+                    showToast('⚠️ Please refresh the page to search', 3000);
+                    return;
+                }
+                displayResults(response);
+            });
         } else {
             document.getElementById('mf-results').innerHTML = '<p class="mf-empty">Type to search...</p>';
         }
@@ -188,7 +199,14 @@ function handleSearch(query, filter = 'all') {
         query: query,
         limit: 20,
         filters: { role: filter !== 'all' ? filter : null }
-    }, displayResults);
+    }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.warn('🔄 Extension context invalidated. Please refresh the page.');
+            showToast('⚠️ Please refresh the page to search', 3000);
+            return;
+        }
+        displayResults(response);
+    });
 }
 
 // Display search results
@@ -253,6 +271,14 @@ window.insertIntoChat = function(text) {
 // Update stats display
 function updateStats() {
     chrome.runtime.sendMessage({ action: 'getStats' }, (stats) => {
+        if (chrome.runtime.lastError) {
+            console.warn('🔄 Extension context invalidated. Please refresh the page.');
+            const countEl = document.getElementById('mf-count');
+            const statusEl = document.getElementById('mf-status');
+            if (countEl) countEl.textContent = '⚠️ Refresh page';
+            if (statusEl) statusEl.textContent = 'Context lost';
+            return;
+        }
         if (stats) {
             document.getElementById('mf-count').textContent = `${stats.count} memories`;
             document.getElementById('mf-status').textContent = stats.mode || 'Local';
