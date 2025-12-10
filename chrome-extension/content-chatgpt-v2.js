@@ -143,9 +143,12 @@ function injectSidebar() {
         </div>
         
         <div class="mf-actions">
+            <button id="mf-import">📤 Import Context</button>
             <button id="mf-export">📥 Export All</button>
             <button id="mf-save-current">💾 Save Current</button>
         </div>
+        
+        <input type="file" id="mf-import-file" accept=".md,.txt,.json" style="display: none;" />
     `;
     
     document.body.appendChild(sidebar);
@@ -171,6 +174,11 @@ function injectSidebar() {
         });
     });
     
+    document.getElementById('mf-import').addEventListener('click', () => {
+        document.getElementById('mf-import-file').click();
+    });
+    
+    document.getElementById('mf-import-file').addEventListener('change', handleImportFile);
     document.getElementById('mf-export').addEventListener('click', exportAllConversations);
     document.getElementById('mf-save-current').addEventListener('click', saveCurrentConversation);
     
@@ -481,6 +489,99 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Import context file
+function handleImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+        const content = e.target.result;
+        
+        try {
+            // Detect file type and parse
+            let contextText = '';
+            
+            if (file.name.endsWith('.json')) {
+                const data = JSON.parse(content);
+                contextText = data.optimalContext || data.contextPrompt || JSON.stringify(data, null, 2);
+            } else {
+                // Markdown or text file
+                contextText = content;
+            }
+            
+            // Insert into chat input
+            insertTextIntoChat(contextText);
+            
+            showToast('✅ Context imported! Ready to paste into chat.');
+            
+            // Optional: Show in modal for review
+            showImportPreview(contextText);
+            
+        } catch (error) {
+            showToast('❌ Failed to import file: ' + error.message);
+            console.error('Import error:', error);
+        }
+    };
+    
+    reader.readAsText(file);
+    
+    // Reset file input
+    event.target.value = '';
+}
+
+// Insert text into ChatGPT input
+function insertTextIntoChat(text) {
+    const inputSelector = 'textarea[data-id], textarea#prompt-textarea, div[contenteditable="true"]';
+    const input = document.querySelector(inputSelector);
+    
+    if (!input) {
+        console.warn('Chat input not found');
+        return false;
+    }
+    
+    if (input.tagName === 'TEXTAREA') {
+        input.value = text;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+        input.textContent = text;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    
+    // Focus on input
+    input.focus();
+    
+    return true;
+}
+
+// Show import preview modal
+function showImportPreview(text) {
+    const modal = document.createElement('div');
+    modal.className = 'mf-modal-overlay';
+    modal.innerHTML = `
+        <div class="mf-modal" style="max-width: 700px;">
+            <div class="mf-modal-header">
+                <h3>📤 Imported Context Preview</h3>
+                <button class="mf-close-btn" onclick="this.closest('.mf-modal-overlay').remove()">×</button>
+            </div>
+            <div class="mf-modal-body">
+                <pre style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;">${escapeHtml(text)}</pre>
+            </div>
+            <div class="mf-modal-footer">
+                <button class="mf-modal-btn mf-btn-primary" onclick="navigator.clipboard.writeText(\`${text.replace(/`/g, '\\`')}\`).then(() => { window.showToast('✅ Copied to clipboard!'); this.closest('.mf-modal-overlay').remove(); })">
+                    📋 Copy to Clipboard
+                </button>
+                <button class="mf-modal-btn" onclick="this.closest('.mf-modal-overlay').remove()">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
 }
 
 function showToast(message, duration = 2000) {
