@@ -10,98 +10,306 @@ class EnhancedContextExtractor {
     generateDetailedContext(conversation) {
         const title = conversation.title || 'Conversation';
         const messages = conversation.messages || [];
-        const userMessages = messages.filter(m => m.role === 'user');
-        const aiMessages = messages.filter(m => m.role === 'assistant');
         
-        let markdown = `# 🧠 Context File: ${title}
-
-**📊 Stats:**
-- Total Messages: ${messages.length}
-- User Messages: ${userMessages.length}
-- AI Responses: ${aiMessages.length}
-- Started: ${new Date(conversation.startedAt).toLocaleString()}
-- Last Updated: ${new Date(conversation.updatedAt).toLocaleString()}
-
----
-
-## 📖 Conversation Flow (Detailed Summary)
-
-`;
-
-        // Generate detailed conversation narrative
-        markdown += this.generateConversationNarrative(messages);
-        
-        markdown += `\n---
-
-## 🎯 Main Topics Discussed
-
-`;
-        markdown += this.extractMainTopics(messages);
-        
-        markdown += `\n---
-
-## ⚠️ Corrections & Learning Points
-
-`;
+        // Extract all 7 components
+        const userStyle = this.extractUserStyle(messages);
+        const purpose = this.extractPurpose(conversation);
+        const keyFacts = this.extractKeyFacts(messages);
         const corrections = this.findCorrections(messages);
+        const preferences = this.extractPreferences(messages);
+        const importantPrompts = this.extractImportantPrompts(messages);
+        const openTasks = this.extractOpenTasks(messages);
+        
+        let markdown = `# Context: ${title}
+
+## 1. User Communication Style
+${userStyle}
+
+## 2. Purpose & Goal
+${purpose}
+
+## 3. Key Information Summary
+${keyFacts}
+
+## 4. Corrections & Rules to Prevent Failures
+`;
+
         if (corrections.length > 0) {
             corrections.forEach((correction, i) => {
-                markdown += `\n### Correction ${i + 1}\n`;
-                markdown += `**What went wrong:** ${correction.issue}\n`;
-                markdown += `**User's correction:** ${correction.userFix}\n`;
-                markdown += `**Lesson:** ${correction.lesson}\n`;
+                markdown += `\n**Issue ${i + 1}:**\n`;
+                markdown += `❌ Wrong approach: ${correction.issue}\n`;
+                markdown += `✅ Correct approach: ${correction.lesson}\n`;
             });
         } else {
-            markdown += `No corrections needed - conversation went smoothly.\n`;
+            markdown += `No corrections - conversation went smoothly.\n`;
         }
         
-        markdown += `\n---
-
-## 🔑 Key Information to Remember
+        markdown += `\n## 5. User Preferences & Requirements
 
 `;
-        markdown += this.extractKeyInformation(messages);
+        markdown += preferences;
+        
+        markdown += `\n## 6. Important Prompts to Preserve
+
+`;
+        markdown += importantPrompts;
+        
+        markdown += `\n## 7. Open Tasks & Next Steps
+
+`;
+        markdown += openTasks;
         
         markdown += `\n---
 
-## 💬 Complete Message History
+## 📝 Compressed Conversation Summary
 
 `;
         
-        // Full conversation with better formatting
-        messages.forEach((msg, i) => {
-            const roleIcon = msg.role === 'user' ? '👤' : '🤖';
-            const roleLabel = msg.role === 'user' ? 'USER' : 'ASSISTANT';
+        // COMPRESSED: Only prompts + AI response summaries (NOT full text)
+        markdown += this.generateCompressedSummary(messages);
+        
+        return markdown;
+    }
+    
+    extractUserStyle(messages) {
+        const userMessages = messages.filter(m => m.role === 'user');
+        
+        if (userMessages.length === 0) return 'Not enough data';
+        
+        const avgLength = userMessages.reduce((sum, m) => sum + m.content.length, 0) / userMessages.length;
+        const hasCode = userMessages.some(m => m.content.includes('```') || /function|const|class|def /i.test(m.content));
+        const questionCount = userMessages.filter(m => m.content.includes('?')).length;
+        
+        let style = [];
+        
+        if (avgLength < 50) {
+            style.push('Concise, direct questions');
+        } else if (avgLength > 200) {
+            style.push('Detailed, context-rich communication');
+        } else {
+            style.push('Balanced, clear communication');
+        }
+        
+        if (hasCode) {
+            style.push('Technical, includes code examples');
+        }
+        
+        if (questionCount > userMessages.length * 0.6) {
+            style.push('Question-driven learning approach');
+        }
+        
+        return style.join(', ');
+    }
+    
+    extractPurpose(conversation) {
+        if (conversation.title && conversation.title !== 'New Conversation') {
+            return conversation.title;
+        }
+        
+        const firstUser = conversation.messages.find(m => m.role === 'user');
+        if (firstUser) {
+            return firstUser.content.substring(0, 150).trim();
+        }
+        
+        return 'General discussion';
+    }
+    
+    extractKeyFacts(messages) {
+        const facts = [];
+        
+        // Extract main topics discussed
+        const topics = this.extractMainTopics(messages);
+        if (topics) {
+            facts.push(`**Topics:** ${topics.replace(/\n/g, ', ')}`);
+        }
+        
+        // Count exchanges
+        const exchanges = Math.floor(messages.length / 2);
+        facts.push(`**Exchanges:** ${exchanges} back-and-forth conversations`);
+        
+        // Detect if technical/code-heavy
+        const hasCode = messages.some(m => m.content.includes('```'));
+        if (hasCode) {
+            facts.push(`**Nature:** Technical discussion with code examples`);
+        }
+        
+        return facts.join('\n');
+    }
+    
+    extractPreferences(messages) {
+        const preferences = {
+            always: [],
+            never: []
+        };
+        
+        const alwaysKeywords = ['always', 'make sure', 'remember to', "don't forget", 'please'];
+        const neverKeywords = ['never', "don't", 'avoid', 'stop', "shouldn't"];
+        
+        messages.filter(m => m.role === 'user').forEach(msg => {
+            const lower = msg.content.toLowerCase();
             
-            markdown += `\n### ${roleIcon} ${roleLabel} - Message ${i + 1}\n\n`;
+            alwaysKeywords.forEach(kw => {
+                if (lower.includes(kw)) {
+                    const sentence = this.extractSentence(msg.content, kw);
+                    if (sentence && !preferences.always.includes(sentence)) {
+                        preferences.always.push(sentence);
+                    }
+                }
+            });
             
-            // Smart truncation - keep more if it's important
-            const isImportant = this.isImportantMessage(msg, messages, i);
-            const maxLength = isImportant ? 500 : 300;
+            neverKeywords.forEach(kw => {
+                if (lower.includes(kw)) {
+                    const sentence = this.extractSentence(msg.content, kw);
+                    if (sentence && !preferences.never.includes(sentence)) {
+                        preferences.never.push(sentence);
+                    }
+                }
+            });
+        });
+        
+        let result = '';
+        
+        if (preferences.always.length > 0) {
+            result += `**Always:**\n${preferences.always.slice(0, 3).map(p => `- ${p}`).join('\n')}\n\n`;
+        }
+        
+        if (preferences.never.length > 0) {
+            result += `**Never:**\n${preferences.never.slice(0, 3).map(p => `- ${p}`).join('\n')}\n`;
+        }
+        
+        if (!result) {
+            result = 'No specific preferences mentioned.';
+        }
+        
+        return result;
+    }
+    
+    extractSentence(text, keyword) {
+        const sentences = text.split(/[.!?]+/);
+        const found = sentences.find(s => s.toLowerCase().includes(keyword.toLowerCase()));
+        return found ? found.trim().substring(0, 100) : null;
+    }
+    
+    extractImportantPrompts(messages) {
+        const userMessages = messages.filter(m => m.role === 'user');
+        
+        // Score each prompt
+        const scored = userMessages.map(msg => ({
+            content: msg.content,
+            score: this.scorePromptImportance(msg, messages)
+        }));
+        
+        // Sort by score and take top 5
+        scored.sort((a, b) => b.score - a.score);
+        
+        const top = scored.slice(0, 5);
+        
+        if (top.length === 0) return 'No prompts captured.';
+        
+        return top.map((p, i) => `${i + 1}. ${p.content.substring(0, 150)}${p.content.length > 150 ? '...' : ''}`).join('\n');
+    }
+    
+    scorePromptImportance(msg, allMessages) {
+        let score = 0;
+        
+        // Length scoring
+        score += msg.content.length * 0.1;
+        
+        // Has question mark
+        if (msg.content.includes('?')) score += 50;
+        
+        // Has code
+        if (msg.content.includes('```') || /function|const|class/i.test(msg.content)) score += 100;
+        
+        // Contains keywords
+        if (/explain|how|what|why|describe/i.test(msg.content)) score += 40;
+        
+        // Is a correction
+        if (/wrong|no|not this|incorrect|fix/i.test(msg.content)) score += 80;
+        
+        return score;
+    }
+    
+    extractOpenTasks(messages) {
+        const recent = messages.slice(-5);
+        const tasks = [];
+        
+        const taskKeywords = ['todo', 'need to', 'should', 'can you', 'please', 'next', 'also'];
+        
+        recent.filter(m => m.role === 'user').forEach(msg => {
+            const hasTaskKeyword = taskKeywords.some(kw => msg.content.toLowerCase().includes(kw));
             
-            if (msg.content.length > maxLength) {
-                markdown += `${msg.content.substring(0, maxLength)}...\n\n`;
-                markdown += `*[Truncated - ${msg.content.length} total characters]*\n`;
-            } else {
-                markdown += `${msg.content}\n`;
+            if (hasTaskKeyword || msg.content.includes('?')) {
+                tasks.push(msg.content.substring(0, 100));
             }
         });
         
-        markdown += `\n---
-
-## 📝 How to Use This Context
-
-When starting a new chat, paste this entire context file. The AI will:
-1. ✅ Remember all topics discussed
-2. ✅ Understand your communication style
-3. ✅ Know what corrections were made
-4. ✅ Continue from where you left off
-
-**Format optimized for maximum LLM comprehension.**
-
-`;
+        if (tasks.length === 0) return 'All tasks completed.';
         
-        return markdown;
+        return tasks.slice(0, 3).map((t, i) => `${i + 1}. ${t}${t.length >= 100 ? '...' : ''}`).join('\n');
+    }
+    
+    generateCompressedSummary(messages) {
+        let summary = '';
+        let count = 1;
+        
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            
+            if (msg.role === 'user') {
+                summary += `\n**Q${count}:** ${msg.content.substring(0, 150)}${msg.content.length > 150 ? '...' : ''}\n`;
+                
+                // Find AI response
+                if (i + 1 < messages.length && messages[i + 1].role === 'assistant') {
+                    const aiMsg = messages[i + 1];
+                    const aiSummary = this.compressAIResponse(aiMsg.content);
+                    summary += `**A${count}:** ${aiSummary}\n`;
+                    i++; // Skip next
+                }
+                
+                count++;
+            }
+        }
+        
+        return summary;
+    }
+    
+    compressAIResponse(response) {
+        // COMPRESS AI response intelligently
+        
+        // If short, return as-is
+        if (response.length <= 100) {
+            return response;
+        }
+        
+        // Extract key info
+        const hasCode = response.includes('```');
+        const hasLists = /^[-*]\s/m.test(response) || /^\d+\.\s/m.test(response);
+        const sentences = response.split(/[.!?]+/).filter(s => s.trim().length > 10);
+        
+        let compressed = '';
+        
+        // Take first sentence as main point
+        if (sentences.length > 0) {
+            compressed = sentences[0].trim() + '.';
+        }
+        
+        // Add structure notes
+        if (hasCode) {
+            const codeCount = (response.match(/```/g) || []).length / 2;
+            compressed += ` [Includes ${codeCount} code example${codeCount > 1 ? 's' : ''}]`;
+        }
+        
+        if (hasLists) {
+            const listItems = (response.match(/^[-*•]\s/gm) || []).length + (response.match(/^\d+\.\s/gm) || []).length;
+            compressed += ` [${listItems} point list]`;
+        }
+        
+        if (sentences.length > 3) {
+            compressed += ` [+${sentences.length - 1} more details]`;
+        }
+        
+        return compressed;
     }
     
     generateConversationNarrative(messages) {
