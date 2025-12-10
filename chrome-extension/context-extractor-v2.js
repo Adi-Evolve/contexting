@@ -141,7 +141,7 @@ ${openTasks}
                 
                 // Check for assistant response
                 if (i + 1 < messages.length && messages[i + 1].role === 'assistant') {
-                    markdown += `\n### Assistant Response ${msgCount}\n${messages[i + 1].content.substring(0, 200)}${messages[i + 1].content.length > 200 ? '...\n' : '\n'}`;
+                    markdown += `\n### Assistant Response ${msgCount}\n${messages[i + 1].content}\n`;
                     i++; // Skip next as we processed it
                 }
                 
@@ -354,7 +354,7 @@ ${openTasks}
             const msg = messages[i];
             
             if (msg.role === 'user') {
-                summary += `\n**Q${count}:** ${msg.content.substring(0, 150)}${msg.content.length > 150 ? '...' : ''}\n`;
+                summary += `\n**Q${count}:** ${msg.content}\n`;
                 
                 // Find AI response
                 if (i + 1 < messages.length && messages[i + 1].role === 'assistant') {
@@ -504,7 +504,7 @@ ${openTasks}
                     const matches = msg.content.matchAll(pattern);
                     for (const match of matches) {
                         if (match[1] || match[2]) {
-                            const topic = (match[1] || match[2]).trim().substring(0, 50);
+                            const topic = (match[1] || match[2]).trim();
                             if (topic.length > 3) {
                                 topics.add(topic);
                             }
@@ -518,7 +518,7 @@ ${openTasks}
             // Fallback: use first user message
             const firstUser = messages.find(m => m.role === 'user');
             if (firstUser) {
-                return `- ${firstUser.content.substring(0, 100)}...\n`;
+                return `- ${firstUser.content}\n`;
             }
             return '- General discussion\n';
         }
@@ -584,8 +584,7 @@ ${openTasks}
             const hasImportantMarker = importantPatterns.some(pattern => pattern.test(msg.content));
             
             if (hasImportantMarker) {
-                const snippet = msg.content.substring(0, 200);
-                keyInfo += `- ${snippet}${msg.content.length > 200 ? '...' : ''}\n`;
+                keyInfo += `- ${msg.content}\n`;
             }
         });
         
@@ -669,11 +668,7 @@ ${openTasks}
         const userMessages = messages.filter(m => m.role === 'user').slice(0, 5);
         
         for (const msg of userMessages) {
-            if (msg.content.length < 200) {
-                topics.push(`- ${msg.content}`);
-            } else {
-                topics.push(`- ${msg.content.substring(0, 150)}...`);
-            }
+            topics.push(`- ${msg.content}`);
         }
         
         return topics.length > 0 ? topics.join('\n') : 'General discussion and Q&A';
@@ -819,10 +814,9 @@ ${openTasks}
         return tasks.length > 0 ? tasks.slice(0, 3).join('\n') : '- All tasks completed';
     }
     
-    // Helper: Summarize message to max length
+    // Helper: Return full message content without truncation
     summarizeMessage(content, maxLen) {
-        if (content.length <= maxLen) return content;
-        return content.substring(0, maxLen) + '...';
+        return content;
     }
 }
 
