@@ -1,0 +1,101 @@
+{
+  "name": "remember-vscode",
+  "displayName": "Remember - Context Extractor",
+  "description": "Capture and extract AI chat context from VS Code Copilot conversations",
+  "version": "1.0.0",
+  "publisher": "remember",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "copilot",
+    "context",
+    "memory",
+    "chat"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onLanguageModelAccess:*"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "remember",
+        "name": "Remember",
+        "description": "Automatically captures your chat conversations",
+        "isSticky": true
+      }
+    ],
+    "commands": [
+      {
+        "command": "remember.captureConversation",
+        "title": "Remember: Capture Current Conversation"
+      },
+      {
+        "command": "remember.exportContext",
+        "title": "Remember: Export as Optimal Context"
+      },
+      {
+        "command": "remember.viewConversations",
+        "title": "Remember: View All Conversations"
+      },
+      {
+        "command": "remember.importContext",
+        "title": "Remember: Import Context File"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "remember-sidebar",
+          "title": "Remember",
+          "icon": "icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "remember-sidebar": [
+        {
+          "id": "remember.conversations",
+          "name": "Conversations"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Remember",
+      "properties": {
+        "remember.autoCapture": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically capture Copilot Chat conversations"
+        },
+        "remember.captureInterval": {
+          "type": "number",
+          "default": 5,
+          "description": "Minutes between conversation auto-saves"
+        },
+        "remember.maxConversations": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum number of conversations to store"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.x",
+    "eslint": "^8.50.0"
+  }
+}
