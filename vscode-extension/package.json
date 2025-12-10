@@ -1,9 +1,9 @@
 {
-  "name": "memoryforge-vscode",
-  "displayName": "MemoryForge - Context Extractor",
+  "name": "remember-vscode",
+  "displayName": "Remember - Context Extractor",
   "description": "Capture and extract AI chat context from VS Code Copilot conversations",
   "version": "1.0.0",
-  "publisher": "memoryforge",
+  "publisher": "remember",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -26,61 +26,61 @@
   "contributes": {
     "chatParticipants": [
       {
-        "id": "memoryforge",
-        "name": "MemoryForge",
+        "id": "remember",
+        "name": "Remember",
         "description": "Automatically captures your chat conversations",
         "isSticky": true
       }
     ],
     "commands": [
       {
-        "command": "memoryforge.captureConversation",
-        "title": "MemoryForge: Capture Current Conversation"
+        "command": "remember.captureConversation",
+        "title": "Remember: Capture Current Conversation"
       },
       {
-        "command": "memoryforge.exportContext",
-        "title": "MemoryForge: Export as Optimal Context"
+        "command": "remember.exportContext",
+        "title": "Remember: Export as Optimal Context"
       },
       {
-        "command": "memoryforge.viewConversations",
-        "title": "MemoryForge: View All Conversations"
+        "command": "remember.viewConversations",
+        "title": "Remember: View All Conversations"
       },
       {
-        "command": "memoryforge.importContext",
-        "title": "MemoryForge: Import Context File"
+        "command": "remember.importContext",
+        "title": "Remember: Import Context File"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "memoryforge-sidebar",
-          "title": "MemoryForge",
+          "id": "remember-sidebar",
+          "title": "Remember",
           "icon": "icon.svg"
         }
       ]
     },
     "views": {
-      "memoryforge-sidebar": [
+      "remember-sidebar": [
         {
-          "id": "memoryforge.conversations",
+          "id": "remember.conversations",
           "name": "Conversations"
         }
       ]
     },
     "configuration": {
-      "title": "MemoryForge",
+      "title": "Remember",
       "properties": {
-        "memoryforge.autoCapture": {
+        "remember.autoCapture": {
           "type": "boolean",
           "default": true,
           "description": "Automatically capture Copilot Chat conversations"
         },
-        "memoryforge.captureInterval": {
+        "remember.captureInterval": {
           "type": "number",
           "default": 5,
           "description": "Minutes between conversation auto-saves"
         },
-        "memoryforge.maxConversations": {
+        "remember.maxConversations": {
           "type": "number",
           "default": 100,
           "description": "Maximum number of conversations to store"

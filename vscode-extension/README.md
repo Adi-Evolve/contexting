@@ -1,4 +1,4 @@
-# MemoryForge - VS Code Extension
+# Remember - VS Code Extension
 
 Extract and preserve AI conversation context from VS Code Copilot chats.
 
@@ -35,8 +35,8 @@ Extract and preserve AI conversation context from VS Code Copilot chats.
 
 1. Open GitHub Copilot Chat (`Ctrl+Shift+I`)
 2. Chat with Copilot as usual
-3. MemoryForge **automatically captures** every message in the background
-4. View captured conversations in MemoryForge sidebar (Activity Bar)
+3. Remember **automatically captures** every message in the background
+4. View captured conversations in Remember sidebar (Activity Bar)
 5. Export anytime with one click!
 
 **Supported:**
@@ -46,32 +46,32 @@ Extract and preserve AI conversation context from VS Code Copilot chats.
 
 ### Export as Optimal Context
 
-1. Run command: `MemoryForge: Export as Optimal Context`
+1. Run command: `Remember: Export as Optimal Context`
 2. Select conversation from list
 3. Choose save location
 4. Context file opens automatically
 
 ### Import Context to New Chat
 
-1. Run command: `MemoryForge: Import Context File`
+1. Run command: `Remember: Import Context File`
 2. Select `.md` context file
 3. Copy content to new Copilot Chat
 4. AI now has full memory of previous conversation!
 
 ## Commands
 
-- `MemoryForge: Capture Current Conversation` - Capture active conversation
-- `MemoryForge: Export as Optimal Context` - Export as 7-point format
-- `MemoryForge: View All Conversations` - Open sidebar
-- `MemoryForge: Import Context File` - Import context
+- `Remember: Capture Current Conversation` - Capture active conversation
+- `Remember: Export as Optimal Context` - Export as 7-point format
+- `Remember: View All Conversations` - Open sidebar
+- `Remember: Import Context File` - Import context
 
 ## Settings
 
 ```json
 {
-  "memoryforge.autoCapture": true,
-  "memoryforge.captureInterval": 5,
-  "memoryforge.maxConversations": 100
+  "remember.autoCapture": true,
+  "remember.captureInterval": 5,
+  "remember.maxConversations": 100
 }
 ```
 
@@ -96,7 +96,7 @@ The exported context follows the optimal 7-point structure for maximum LLM compr
 
 1. Open VS Code
 2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "MemoryForge"
+3. Search for "Remember"
 4. Click Install
 
 ## License

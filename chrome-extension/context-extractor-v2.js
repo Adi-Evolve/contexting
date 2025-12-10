@@ -3,6 +3,23 @@
 
 class EnhancedContextExtractor {
     
+    constructor() {
+        // Initialize conversation threader if available
+        this.threader = typeof ConversationThreader !== 'undefined' 
+            ? new ConversationThreader() 
+            : null;
+        
+        // Initialize code language detector if available
+        this.languageDetector = typeof CodeLanguageDetector !== 'undefined'
+            ? new CodeLanguageDetector()
+            : null;
+        
+        // Initialize tool usage tracker if available
+        this.toolTracker = typeof ToolUsageTracker !== 'undefined'
+            ? new ToolUsageTracker()
+            : null;
+    }
+    
     extractContext(conversation) {
         return this.generateDetailedContext(conversation);
     }
@@ -68,6 +85,44 @@ ${keyFacts}
 
 `;
         markdown += openTasks;
+        
+        // TOOL USAGE TRACKING (if available)
+        if (this.toolTracker) {
+            const toolUsage = this.toolTracker.trackConversation(messages);
+            const toolCount = Object.keys(toolUsage.tools).length + 
+                             toolUsage.vscodeExtensions.length + 
+                             toolUsage.vscodeCommands.length;
+            
+            if (toolCount > 0) {
+                markdown += `\n---
+
+## 🛠️ Tools & Technologies
+
+`;
+                markdown += this.toolTracker.generateSummary(toolUsage);
+            }
+        }
+        
+        // CONVERSATION THREADING (if available)
+        if (this.threader && messages.length >= 6) {
+            const threads = this.threader.analyzeConversation(messages);
+            
+            if (threads.length > 1) {
+                markdown += `\n---
+
+## 🧵 Conversation Threads
+
+*Detected ${threads.length} distinct topics within this conversation:*
+
+`;
+                threads.forEach((thread, i) => {
+                    markdown += `**Thread ${i + 1}: ${thread.title}**\n`;
+                    markdown += `- Topic: ${thread.topic}\n`;
+                    markdown += `- Messages: ${thread.startIndex + 1}-${thread.endIndex + 1} (${thread.messages.length} messages)\n`;
+                    markdown += `- Confidence: ${(thread.confidence * 100).toFixed(0)}%\n\n`;
+                });
+            }
+        }
         
         markdown += `\n---
 
@@ -137,10 +192,22 @@ ${keyFacts}
         const exchanges = Math.floor(messages.length / 2);
         facts.push(`**Exchanges:** ${exchanges} back-and-forth conversations`);
         
-        // Detect if technical/code-heavy
-        const hasCode = messages.some(m => m.content.includes('```'));
-        if (hasCode) {
-            facts.push(`**Nature:** Technical discussion with code examples`);
+        // Detect programming languages used
+        if (this.languageDetector) {
+            const langAnalysis = this.languageDetector.analyzeConversation(messages);
+            if (langAnalysis.languages.length > 0) {
+                const langList = langAnalysis.languages
+                    .slice(0, 3)
+                    .map(l => `${l.language} (${l.occurrences}x)`)
+                    .join(', ');
+                facts.push(`**Languages:** ${langList}`);
+            }
+        } else {
+            // Fallback: basic code detection
+            const hasCode = messages.some(m => m.content.includes('```'));
+            if (hasCode) {
+                facts.push(`**Nature:** Technical discussion with code examples`);
+            }
         }
         
         return facts.join('\n');

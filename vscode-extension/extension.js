@@ -2,8 +2,20 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 
+// Load conversation threader, language detector, and tool tracker
+const ConversationThreader = require('./conversation-threader.js');
+const CodeLanguageDetector = require('./code-language-detector.js');
+const ToolUsageTracker = require('./tool-usage-tracker.js');
+
 // Enhanced Context Extractor - Compressed 7-Point Format
 class EnhancedContextExtractor {
+    
+    constructor() {
+        // Initialize all analyzers
+        this.threader = new ConversationThreader();
+        this.languageDetector = new CodeLanguageDetector();
+        this.toolTracker = new ToolUsageTracker();
+    }
     
     extractContext(conversation) {
         return this.generateDetailedContext(conversation);
@@ -71,6 +83,44 @@ ${keyFacts}
 `;
         markdown += openTasks;
         
+        // TOOL USAGE TRACKING (if available)
+        if (this.toolTracker) {
+            const toolUsage = this.toolTracker.trackConversation(messages);
+            const toolCount = Object.keys(toolUsage.tools).length + 
+                             toolUsage.vscodeExtensions.length + 
+                             toolUsage.vscodeCommands.length;
+            
+            if (toolCount > 0) {
+                markdown += `\n---
+
+## 🛠️ Tools & Technologies
+
+`;
+                markdown += this.toolTracker.generateSummary(toolUsage);
+            }
+        }
+        
+        // CONVERSATION THREADING (if available)
+        if (this.threader && messages.length >= 6) {
+            const threads = this.threader.analyzeConversation(messages);
+            
+            if (threads.length > 1) {
+                markdown += `\n---
+
+## 🧵 Conversation Threads
+
+*Detected ${threads.length} distinct topics within this conversation:*
+
+`;
+                threads.forEach((thread, i) => {
+                    markdown += `**Thread ${i + 1}: ${thread.title}**\n`;
+                    markdown += `- Topic: ${thread.topic}\n`;
+                    markdown += `- Messages: ${thread.startIndex + 1}-${thread.endIndex + 1} (${thread.messages.length} messages)\n`;
+                    markdown += `- Confidence: ${(thread.confidence * 100).toFixed(0)}%\n\n`;
+                });
+            }
+        }
+        
         markdown += `\n---
 
 ## 📝 Compressed Conversation Summary
@@ -137,10 +187,22 @@ ${keyFacts}
         const exchanges = Math.floor(messages.length / 2);
         facts.push(`**Exchanges:** ${exchanges} back-and-forth conversations`);
         
-        // Detect if technical/code-heavy
-        const hasCode = messages.some(m => m.content.includes('```'));
-        if (hasCode) {
-            facts.push(`**Nature:** Technical discussion with code examples`);
+        // Detect programming languages used
+        if (this.languageDetector) {
+            const langAnalysis = this.languageDetector.analyzeConversation(messages);
+            if (langAnalysis.languages.length > 0) {
+                const langList = langAnalysis.languages
+                    .slice(0, 3)
+                    .map(l => `${l.language} (${l.occurrences}x)`)
+                    .join(', ');
+                facts.push(`**Languages:** ${langList}`);
+            }
+        } else {
+            // Fallback: basic code detection
+            const hasCode = messages.some(m => m.content.includes('```'));
+            if (hasCode) {
+                facts.push(`**Nature:** Technical discussion with code examples`);
+            }
         }
         
         return facts.join('\n');
@@ -402,7 +464,7 @@ class ConversationManager {
     }
 
     saveConversations() {
-        const maxConversations = vscode.workspace.getConfiguration('memoryforge').get('maxConversations', 100);
+        const maxConversations = vscode.workspace.getConfiguration('remember').get('maxConversations', 100);
         const toSave = this.conversations.slice(-maxConversations);
         this.context.globalState.update('conversations', toSave);
     }
@@ -507,7 +569,7 @@ class ConversationTreeProvider {
             item.id = conv.id;
             
             item.command = {
-                command: 'memoryforge.viewConversationDetail',
+                command: 'remember.viewConversationDetail',
                 title: 'View Conversation',
                 arguments: [conv.id]
             };
@@ -521,20 +583,20 @@ let conversationManager;
 let treeProvider;
 
 function activate(context) {
-    console.log('MemoryForge VS Code extension activated');
+    console.log('Remember VS Code extension activated');
 
     // Initialize conversation manager
     conversationManager = new ConversationManager(context);
 
     // Initialize tree view
     treeProvider = new ConversationTreeProvider(conversationManager);
-    vscode.window.registerTreeDataProvider('memoryforge.conversations', treeProvider);
+    vscode.window.registerTreeDataProvider('remember.conversations', treeProvider);
 
     // AUTOMATIC CAPTURE: Monitor GitHub Copilot Chat
-    const autoCapture = vscode.workspace.getConfiguration('memoryforge').get('autoCapture', true);
+    const autoCapture = vscode.workspace.getConfiguration('remember').get('autoCapture', true);
     
     if (autoCapture) {
-        console.log('🎯 MemoryForge: Auto-capture enabled for Copilot Chat');
+        console.log('🎯 Remember: Auto-capture enabled for Copilot Chat');
         
         // Listen to chat participant API
         setupCopilotChatMonitoring(context);
@@ -545,7 +607,7 @@ function activate(context) {
 
     // Command: Capture current conversation
     context.subscriptions.push(
-        vscode.commands.registerCommand('memoryforge.captureConversation', async () => {
+        vscode.commands.registerCommand('remember.captureConversation', async () => {
             const chatPanel = vscode.window.activeTextEditor;
             
             if (!chatPanel) {
@@ -582,7 +644,7 @@ function activate(context) {
 
     // Command: Export as optimal context
     context.subscriptions.push(
-        vscode.commands.registerCommand('memoryforge.exportContext', async () => {
+        vscode.commands.registerCommand('remember.exportContext', async () => {
             const conversations = conversationManager.getAllConversations();
             
             if (conversations.length === 0) {
@@ -632,14 +694,14 @@ function activate(context) {
 
     // Command: View all conversations
     context.subscriptions.push(
-        vscode.commands.registerCommand('memoryforge.viewConversations', () => {
-            vscode.commands.executeCommand('workbench.view.extension.memoryforge-sidebar');
+        vscode.commands.registerCommand('remember.viewConversations', () => {
+            vscode.commands.executeCommand('workbench.view.extension.remember-sidebar');
         })
     );
 
     // Command: View conversation detail
     context.subscriptions.push(
-        vscode.commands.registerCommand('memoryforge.viewConversationDetail', async (conversationId) => {
+        vscode.commands.registerCommand('remember.viewConversationDetail', async (conversationId) => {
             const conversations = conversationManager.getAllConversations();
             const conversation = conversations.find(c => c.id === conversationId);
             
@@ -658,7 +720,7 @@ function activate(context) {
 
     // Command: Import context
     context.subscriptions.push(
-        vscode.commands.registerCommand('memoryforge.importContext', async () => {
+        vscode.commands.registerCommand('remember.importContext', async () => {
             const uris = await vscode.window.showOpenDialog({
                 canSelectMany: false,
                 filters: {
@@ -777,7 +839,7 @@ function setupCopilotChatMonitoring(context) {
     try {
         // Listen to language model chat requests (VS Code API)
         const chatRequestHandler = vscode.chat.registerChatRequestHandler(
-            'memoryforge',
+            'remember',
             async (request, context, stream, token) => {
                 // Capture user message
                 const userMessage = request.prompt;
@@ -846,7 +908,7 @@ function setupFallbackMonitoring(context) {
                         treeProvider.refresh();
                         
                         vscode.window.showInformationMessage(
-                            `🧠 MemoryForge: Auto-captured ${messages.length} messages`
+                            `🧠 Remember: Auto-captured ${messages.length} messages`
                         );
                     }
                 }

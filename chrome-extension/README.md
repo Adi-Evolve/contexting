@@ -1,4 +1,4 @@
-# 🧠 MemoryForge Chrome Extension
+# 🧠 Remember Chrome Extension
 
 **Persistent memory for ChatGPT and Claude. Never forget your conversations.**
 
@@ -53,7 +53,7 @@
 
 ## 🎯 How to Use
 
-1. **Just chat normally** - MemoryForge captures everything automatically
+1. **Just chat normally** - Remember captures everything automatically
 
 2. **Search memories** - Click the 🧠 button and search
 
@@ -96,8 +96,8 @@ MIT License - Feel free to modify and use!
 
 Found a bug? Have a feature request?
 - Open an issue on GitHub
-- Email: support@memoryforge.ai
+- Email: support@remember.ai
 
 ---
 
-**Made with ❤️ by the MemoryForge team**
+**Made with ❤️ by the Remember team**
