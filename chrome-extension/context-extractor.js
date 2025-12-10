@@ -385,44 +385,51 @@ ${purpose}
 ## 3. Key Facts
 ${keyInfo.slice(0, 5).join('; ')}
 
+## 4. Corrections
 `;
 
-        // Only show failures if they exist
         if (failures.length > 0) {
-            markdown += `## 4. Corrections\n`;
             failures.forEach((failure, i) => {
                 markdown += `**${i + 1}.** ${failure.correction}\n`;
                 markdown += `   Rule: ${failure.rule}\n\n`;
             });
+        } else {
+            markdown += `None\n\n`;
         }
 
-        // Only show preferences if they exist
-        const hasPrefs = preferences.always.length > 0 || preferences.never.length > 0;
-        if (hasPrefs) {
-            markdown += `## 5. Preferences\n`;
+        markdown += `## 5. Preferences
+`;
+        
+        if (preferences.always.length > 0 || preferences.never.length > 0) {
             if (preferences.always.length > 0) {
                 markdown += `Always: ${preferences.always.join(', ')}\n`;
             }
             if (preferences.never.length > 0) {
                 markdown += `Never: ${preferences.never.join(', ')}\n`;
             }
-            markdown += `\n`;
+        } else {
+            markdown += `None specified\n`;
         }
 
-        // Top 3 important prompts only
+        markdown += `\n## 6. Key Messages
+`;
+        
         const topPrompts = importantPrompts.slice(0, 3);
         if (topPrompts.length > 0) {
-            markdown += `## 6. Key Messages\n`;
             topPrompts.forEach((prompt, i) => {
                 markdown += `${i + 1}. ${prompt}\n`;
             });
-            markdown += `\n`;
+        } else {
+            markdown += `None\n`;
         }
 
-        // Only show open tasks if they exist
+        markdown += `\n## 7. Open Tasks
+`;
+        
         if (openTasks.length > 0) {
-            markdown += `## 7. Open Tasks\n`;
             openTasks.forEach(task => markdown += `- ${task}\n`);
+        } else {
+            markdown += `None\n`;
         }
 
         return markdown;
