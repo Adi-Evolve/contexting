@@ -1,0 +1,93 @@
+{
+  "name": "memoryforge-vscode",
+  "displayName": "MemoryForge - Context Extractor",
+  "description": "Capture and extract AI chat context from VS Code Copilot conversations",
+  "version": "1.0.0",
+  "publisher": "memoryforge",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "copilot",
+    "context",
+    "memory",
+    "chat"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "memoryforge.captureConversation",
+        "title": "MemoryForge: Capture Current Conversation"
+      },
+      {
+        "command": "memoryforge.exportContext",
+        "title": "MemoryForge: Export as Optimal Context"
+      },
+      {
+        "command": "memoryforge.viewConversations",
+        "title": "MemoryForge: View All Conversations"
+      },
+      {
+        "command": "memoryforge.importContext",
+        "title": "MemoryForge: Import Context File"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "memoryforge-sidebar",
+          "title": "MemoryForge",
+          "icon": "$(archive)"
+        }
+      ]
+    },
+    "views": {
+      "memoryforge-sidebar": [
+        {
+          "id": "memoryforge.conversations",
+          "name": "Conversations"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MemoryForge",
+      "properties": {
+        "memoryforge.autoCapture": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically capture Copilot Chat conversations"
+        },
+        "memoryforge.captureInterval": {
+          "type": "number",
+          "default": 5,
+          "description": "Minutes between conversation auto-saves"
+        },
+        "memoryforge.maxConversations": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum number of conversations to store"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.x",
+    "eslint": "^8.50.0"
+  }
+}
