@@ -20,7 +20,17 @@ class EnhancedContextExtractor {
         const importantPrompts = this.extractImportantPrompts(messages);
         const openTasks = this.extractOpenTasks(messages);
         
+        // Add metadata
+        const timestamp = new Date().toLocaleString();
+        const messageCount = messages.length;
+        const exchanges = Math.floor(messageCount / 2);
+        const platform = conversation.platform || (title.includes('ChatGPT') ? 'ChatGPT' : title.includes('Claude') ? 'Claude' : 'Web');
+        
         let markdown = `# Context: ${title}
+
+*Generated: ${timestamp} | ${exchanges} exchanges | Source: ${platform}*
+
+---
 
 ## 1. User Communication Style
 ${userStyle}

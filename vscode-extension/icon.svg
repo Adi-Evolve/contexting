@@ -1,0 +1,30 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#4A90E2" opacity="0.1"/>
+  
+  <!-- Brain/Memory icon -->
+  <path d="M 40 45 Q 30 40, 28 50 Q 26 55, 30 60 L 35 70 Q 38 75, 42 73 L 50 70" 
+        stroke="#4A90E2" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <path d="M 88 45 Q 98 40, 100 50 Q 102 55, 98 60 L 93 70 Q 90 75, 86 73 L 78 70" 
+        stroke="#4A90E2" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <path d="M 45 50 Q 50 45, 64 45 Q 78 45, 83 50" 
+        stroke="#4A90E2" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <path d="M 50 70 Q 55 85, 64 87 Q 73 85, 78 70" 
+        stroke="#4A90E2" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Circuit connections -->
+  <circle cx="45" cy="60" r="3" fill="#4A90E2"/>
+  <circle cx="64" cy="55" r="3" fill="#4A90E2"/>
+  <circle cx="83" cy="60" r="3" fill="#4A90E2"/>
+  
+  <line x1="45" y1="60" x2="64" y2="55" stroke="#4A90E2" stroke-width="1.5"/>
+  <line x1="64" y1="55" x2="83" y2="60" stroke="#4A90E2" stroke-width="1.5"/>
+  
+  <!-- Text lines (context/memory representation) -->
+  <rect x="35" y="95" width="58" height="3" rx="1.5" fill="#4A90E2" opacity="0.7"/>
+  <rect x="35" y="102" width="45" height="3" rx="1.5" fill="#4A90E2" opacity="0.5"/>
+  <rect x="35" y="109" width="52" height="3" rx="1.5" fill="#4A90E2" opacity="0.6"/>
+</svg>

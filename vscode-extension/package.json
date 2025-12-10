@@ -55,7 +55,7 @@
         {
           "id": "memoryforge-sidebar",
           "title": "MemoryForge",
-          "icon": "$(archive)"
+          "icon": "icon.svg"
         }
       ]
     },

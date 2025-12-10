@@ -22,7 +22,17 @@ class EnhancedContextExtractor {
         const importantPrompts = this.extractImportantPrompts(messages);
         const openTasks = this.extractOpenTasks(messages);
         
+        // Add metadata
+        const timestamp = conversation.startedAt ? new Date(conversation.startedAt).toLocaleString() : new Date().toLocaleString();
+        const messageCount = messages.length;
+        const exchanges = Math.floor(messageCount / 2);
+        
         let markdown = `# Context: ${title}
+
+*Generated: ${timestamp} | ${exchanges} exchanges | Source: VS Code*
+
+---
+
 
 ## 1. User Communication Style
 ${userStyle}
@@ -137,27 +147,43 @@ ${keyFacts}
     }
     
     extractMainTopics(messages) {
-        // Extract file names
-        const filePattern = /[a-zA-Z0-9_-]+\.(js|ts|py|java|cpp|css|html|json|md|txt)/g;
-        const files = new Set();
-        messages.forEach(m => {
-            const matches = m.content.match(filePattern);
-            if (matches) matches.forEach(f => files.add(f));
+        const topics = new Set();
+        
+        messages.forEach(msg => {
+            // Extract potential topics from user questions
+            if (msg.role === 'user') {
+                const questionPatterns = [
+                    /what is ([\w\s]+)/gi,
+                    /how (to|do|does|can) ([\w\s]+)/gi,
+                    /explain ([\w\s]+)/gi,
+                    /tell me about ([\w\s]+)/gi,
+                    /difference between ([\w\s]+)/gi
+                ];
+                
+                questionPatterns.forEach(pattern => {
+                    const matches = msg.content.matchAll(pattern);
+                    for (const match of matches) {
+                        if (match[1] || match[2]) {
+                            const topic = (match[1] || match[2]).trim().substring(0, 50);
+                            if (topic.length > 3) {
+                                topics.add(topic);
+                            }
+                        }
+                    }
+                });
+            }
         });
         
-        const topics = [];
-        if (files.size > 0) {
-            topics.push(`Files: ${Array.from(files).slice(0, 3).join(', ')}`);
+        if (topics.size === 0) {
+            // Fallback: use first user message
+            const firstUser = messages.find(m => m.role === 'user');
+            if (firstUser) {
+                return `- ${firstUser.content.substring(0, 100)}...\n`;
+            }
+            return '- General discussion\n';
         }
         
-        // Extract task types
-        const hasError = messages.some(m => /error|bug|issue|problem/i.test(m.content));
-        if (hasError) topics.push('Debugging');
-        
-        const hasImplement = messages.some(m => /implement|create|build|add/i.test(m.content));
-        if (hasImplement) topics.push('Implementation');
-        
-        return topics.join(', ') || 'General discussion';
+        return Array.from(topics).slice(0, 5).map(t => `- ${t}`).join('\n') + '\n';
     }
 
     findCorrections(messages) {
