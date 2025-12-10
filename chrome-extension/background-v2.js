@@ -43,6 +43,9 @@ async function handleMessage(request) {
         case 'getConversation':
             return await getConversation(request.id);
         
+        case 'findConversationByChatId':
+            return await findConversationByChatId(request.chatId);
+        
         case 'searchConversations':
             return await searchConversations(request.query);
         
@@ -60,18 +63,36 @@ async function handleMessage(request) {
 // Store conversation
 async function storeConversation(conversation) {
     try {
-        // Check if conversation already exists (update scenario)
-        const existingIndex = conversations.findIndex(c => c.id === conversation.id);
+        await loadData(); // Ensure we have latest data
+        
+        // Check for existing conversation by:
+        // 1. Same ID (exact match)
+        // 2. Same chatId (URL-based deduplication)
+        let existingIndex = conversations.findIndex(c => c.id === conversation.id);
+        
+        if (existingIndex < 0 && conversation.chatId) {
+            // No ID match, try chatId (to prevent duplicates for same URL)
+            existingIndex = conversations.findIndex(c => c.chatId === conversation.chatId);
+        }
         
         if (existingIndex >= 0) {
-            // Update existing conversation
+            // Update existing conversation (merge messages if needed)
+            const existing = conversations[existingIndex];
+            
+            // Keep existing start time, update end time
+            conversation.startTime = existing.startTime;
+            
+            // Replace the conversation
             conversations[existingIndex] = conversation;
-            console.log(`🔄 Updated conversation: ${conversation.id}`);
+            console.log(`🔄 Updated conversation: ${conversation.id} (chatId: ${conversation.chatId})`);
         } else {
             // Add new conversation
             conversations.push(conversation);
-            console.log(`✅ Stored new conversation: ${conversation.id}`);
+            console.log(`✅ Stored new conversation: ${conversation.id} (chatId: ${conversation.chatId})`);
         }
+        
+        // Sort by most recent first
+        conversations.sort((a, b) => b.startTime - a.startTime);
         
         // Update stats
         stats.count = conversations.length;
@@ -141,6 +162,21 @@ async function getConversation(id) {
     } catch (error) {
         console.error('Error getting conversation:', error);
         return { error: error.message };
+    }
+}
+
+// Find conversation by chat ID (URL-based lookup)
+async function findConversationByChatId(chatId) {
+    try {
+        await loadData();
+        const conversation = conversations.find(c => c.chatId === chatId);
+        if (!conversation) {
+            return { conversation: null };
+        }
+        return { conversation: conversation };
+    } catch (error) {
+        console.error('Error finding conversation by chat ID:', error);
+        return { conversation: null };
     }
 }
 

@@ -76,12 +76,48 @@ class ConversationTracker {
         
         return null;
     }
+    
+    // Find existing conversation by chat ID
+    async findConversationByChatId(chatId) {
+        return new Promise((resolve) => {
+            chrome.runtime.sendMessage({
+                action: 'findConversationByChatId',
+                chatId: chatId
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn('Could not check for existing conversation');
+                    resolve(null);
+                    return;
+                }
+                resolve(response?.conversation || null);
+            });
+        });
+    }
 
-    // Start a new conversation
-    startNewConversation() {
-        this.conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Start a new conversation or load existing one
+    async startNewConversation() {
+        const currentChatId = this.extractChatId(window.location.href);
+        
+        // Try to find existing conversation with same chat ID
+        if (currentChatId) {
+            const existingConv = await this.findConversationByChatId(currentChatId);
+            if (existingConv) {
+                // Reuse existing conversation
+                this.conversationId = existingConv.id;
+                this.currentConversation = existingConv;
+                console.log(`🔄 Resumed existing conversation: ${this.conversationId}`);
+                return;
+            }
+        }
+        
+        // Create new conversation with chat ID as part of the ID
+        this.conversationId = currentChatId 
+            ? `conv_${currentChatId}` 
+            : `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
         this.currentConversation = {
             id: this.conversationId,
+            chatId: currentChatId, // Store chat ID for lookup
             title: null, // Will be generated from first message
             messages: [],
             startTime: Date.now(),
@@ -102,13 +138,13 @@ class ConversationTracker {
     }
 
     // Add message to current conversation
-    addMessage(role, content) {
+    async addMessage(role, content) {
         const now = Date.now();
         
         // Check if this is a different conversation by comparing first user message
         if (!this.currentConversation) {
             // No conversation exists, start new one
-            this.startNewConversation();
+            await this.startNewConversation();
         } else if (role === 'user' && !this.currentConversation.firstUserMessage) {
             // This is the first user message in current conversation, store it
             this.currentConversation.firstUserMessage = content;
@@ -175,10 +211,11 @@ class ConversationTracker {
             tokens: this.estimateTokens(summary.fullContext)
         };
 
-        // Send to background script for storage
+        // Send to background script for storage (upsert)
         chrome.runtime.sendMessage({
             action: 'storeConversation',
-            conversation: conversationData
+            conversation: conversationData,
+            upsert: true // Update if exists, create if new
         }, (response) => {
             if (chrome.runtime.lastError) {
                 console.warn('🔄 Extension context lost. Caching locally...');
@@ -186,7 +223,7 @@ class ConversationTracker {
                 return;
             }
             if (response?.success) {
-                console.log(`✅ Saved conversation: ${this.conversationId}`);
+                console.log(`✅ Saved/Updated conversation: ${this.conversationId}`);
             }
         });
     }

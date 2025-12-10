@@ -54,6 +54,7 @@
     right: -450px;
     width: 450px;
     height: 100vh;
+    max-height: 100vh; /* Prevent overflow */
     background: var(--comic-bg);
     color: var(--comic-text);
     box-shadow: -8px 0 0px rgba(0, 0, 0, 0.2);
@@ -65,6 +66,7 @@
     border-left: var(--comic-border-width) solid var(--comic-border-color);
     background-image: radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px);
     background-size: 20px 20px;
+    overflow: hidden; /* Critical: No external scrollbar */
 }
 
 #memoryforge-sidebar.mf-dark-mode {
@@ -206,8 +208,10 @@
 /* Conversations List */
 .mf-conversations {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: auto; /* Only internal scrolling */
+    overflow-x: hidden;
     padding: 16px;
+    max-height: calc(100vh - 300px); /* Prevent overflow: header(~90px) + search(~60px) + filters(~60px) + stats(~50px) + actions(~90px) */
 }
 
 /* Conversation Card */
@@ -384,33 +388,41 @@
 /* Modal */
 .mf-modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
-    height: 100vh;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(2px);
-    z-index: 2147483647;
+    z-index: 999990; /* Below sidebar (999999) */
     display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding-left: 40px;
-    padding-top: 0;
+    align-items: flex-start !important; /* Force top alignment */
+    justify-content: flex-end !important; /* Align to right side */
+    padding-right: 450px !important; /* Push left by sidebar width */
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+    margin: 0 !important;
 }
 
 .mf-modal {
     background: var(--comic-surface);
     color: var(--comic-text);
     border: var(--comic-border-width) solid var(--comic-border-color);
-    border-radius: 8px;
+    border-right: none; /* Remove right border to merge with sidebar */
+    border-top: none; /* Remove top border to be flush with top */
+    border-bottom: none; /* Remove bottom border to be flush with bottom */
+    border-radius: 0 0 0 8px; /* Only round bottom-left corner */
     width: 450px;
-    height: 100vh;
+    height: 100vh !important;
+    box-sizing: border-box !important; /* Ensure padding/border doesn't increase height */
     display: flex;
     flex-direction: column;
-    box-shadow: 8px 8px 0px rgba(0,0,0,0.5);
+    box-shadow: -10px 0 15px rgba(0,0,0,0.2);
     position: relative;
+    margin: 0 !important; /* Force no margin */
+    top: 0 !important;
 }
 
 .mf-modal-header {
