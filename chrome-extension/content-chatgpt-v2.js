@@ -84,14 +84,33 @@ function observeMessages() {
     console.log('👀 Observing messages...');
 }
 
+// Monitor for page navigation (when user clicks different chat in sidebar)
+let lastUrl = window.location.href;
+setInterval(() => {
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastUrl) {
+        console.log('🔄 Chat switched - clearing processed messages cache');
+        processedMessages.clear(); // Clear cache so new chat messages are captured
+        lastUrl = currentUrl;
+        
+        // Reload conversations list in sidebar
+        if (document.getElementById('memoryforge-sidebar')?.classList.contains('mf-open')) {
+            loadConversations();
+        }
+    }
+}, 1000);
+
 // Process individual message and add to conversation
-const processedMessages = new Set();
+const processedMessages = new Map(); // Store URL + messageId to track per-chat
 
 function processMessage(messageElement) {
-    // Avoid processing same message twice
+    // Avoid processing same message twice in same chat
     const messageId = messageElement.getAttribute('data-message-id');
-    if (messageId && processedMessages.has(messageId)) return;
-    if (messageId) processedMessages.add(messageId);
+    const currentUrl = window.location.href;
+    const uniqueKey = `${currentUrl}:::${messageId}`;
+    
+    if (messageId && processedMessages.has(uniqueKey)) return;
+    if (messageId) processedMessages.set(uniqueKey, true);
     
     const role = messageElement.getAttribute('data-message-author-role');
     if (!role) return;
@@ -108,6 +127,12 @@ function processMessage(messageElement) {
     conversationTracker.addMessage(role, content);
     
     console.log(`📝 Captured ${role} message (${content.length} chars)`);
+    
+    // Clean up old processed messages (keep only last 100)
+    if (processedMessages.size > 100) {
+        const firstKey = processedMessages.keys().next().value;
+        processedMessages.delete(firstKey);
+    }
 }
 
 // Inject sidebar
@@ -119,7 +144,10 @@ function injectSidebar() {
     sidebar.className = 'mf-sidebar';
     sidebar.innerHTML = `
         <div class="mf-header">
-            <h3>🧠 Conversations</h3>
+            <div style="display: flex; align-items: center;">
+                <button id="mf-theme-toggle" class="mf-theme-toggle" title="Toggle Dark Mode">🌙</button>
+                <h3>⚡ VOID</h3>
+            </div>
             <button id="mf-close" class="mf-close-btn">×</button>
         </div>
         
@@ -157,6 +185,24 @@ function injectSidebar() {
     document.getElementById('mf-close').addEventListener('click', () => {
         sidebar.classList.remove('mf-open');
     });
+
+    // Theme toggle
+    const themeToggle = document.getElementById('mf-theme-toggle');
+    
+    // Load saved theme
+    chrome.storage.local.get('theme', (result) => {
+        if (result.theme === 'dark') {
+            sidebar.classList.add('mf-dark-mode');
+            themeToggle.textContent = '☀️';
+        }
+    });
+
+    themeToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('mf-dark-mode');
+        const isDark = sidebar.classList.contains('mf-dark-mode');
+        themeToggle.textContent = isDark ? '☀️' : '🌙';
+        chrome.storage.local.set({ theme: isDark ? 'dark' : 'light' });
+    });
     
     document.getElementById('mf-search').addEventListener('input', (e) => {
         handleSearch(e.target.value);
@@ -193,7 +239,7 @@ function addFloatingButton() {
     const button = document.createElement('button');
     button.id = 'mf-float-btn';
     button.className = 'mf-float-btn';
-    button.innerHTML = '🧠';
+    button.innerHTML = '⚡';
     button.title = 'MemoryForge Conversations';
     
     button.addEventListener('click', () => {
@@ -243,7 +289,6 @@ function displayConversations(conversations) {
             <div class="mf-conv-preview">${escapeHtml(conv.messages[0]?.content.substring(0, 80) || '')}...</div>
             <div class="mf-conv-actions">
                 <button class="mf-btn-small mf-copy-btn" data-id="${conv.id}">📋 Copy</button>
-                <button class="mf-btn-small mf-insert-btn" data-id="${conv.id}">➕ Insert</button>
                 <button class="mf-btn-small mf-view-btn" data-id="${conv.id}">👁️ View</button>
             </div>
         </div>
@@ -252,10 +297,6 @@ function displayConversations(conversations) {
     // Add event listeners to buttons
     container.querySelectorAll('.mf-copy-btn').forEach(btn => {
         btn.addEventListener('click', () => copyConversation(btn.dataset.id));
-    });
-    
-    container.querySelectorAll('.mf-insert-btn').forEach(btn => {
-        btn.addEventListener('click', () => insertConversation(btn.dataset.id));
     });
     
     container.querySelectorAll('.mf-view-btn').forEach(btn => {

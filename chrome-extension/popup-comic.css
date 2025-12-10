@@ -1,0 +1,442 @@
+/* Comic Book Theme - Popup Styles */
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Roboto:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+    --comic-primary: #3D5AFE;
+    --comic-secondary: #FFD600;
+    --comic-accent: #FF1744;
+    --comic-bg: #F8F9FA;
+    --comic-surface: #FFFFFF;
+    --comic-text: #000000;
+    --comic-border-color: #000000;
+    --comic-border-width: 2px;
+    --comic-shadow-offset: 4px;
+    --comic-shadow: var(--comic-shadow-offset) var(--comic-shadow-offset) 0px var(--comic-border-color);
+    --comic-radius: 4px;
+    
+    --font-header: 'Bangers', cursive;
+    --font-body: 'Roboto', sans-serif;
+}
+
+body.dark-mode {
+    --comic-bg: #121212;
+    --comic-surface: #1E1E1E;
+    --comic-text: #FFFFFF;
+    --comic-border-color: #FFFFFF; /* Invert border for visibility or keep black with white outline? Let's try white for contrast */
+    --comic-border-color: #E0E0E0;
+    --comic-shadow: var(--comic-shadow-offset) var(--comic-shadow-offset) 0px #000000; /* Shadow stays black */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    width: 380px;
+    padding: 20px;
+    background-color: var(--comic-bg);
+    color: var(--comic-text);
+    font-family: var(--font-body);
+    transition: background-color 0.3s ease;
+    background-image: radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px);
+    background-size: 20px 20px; /* Halftone effect */
+}
+
+body.dark-mode {
+    background-image: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 10px;
+    background: var(--comic-primary);
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    box-shadow: var(--comic-shadow);
+    transform: rotate(-1deg);
+}
+
+h1 {
+    font-family: var(--font-header);
+    font-size: 32px;
+    color: #FFFFFF;
+    text-shadow: 2px 2px 0px #000000;
+    letter-spacing: 1px;
+    margin: 0;
+}
+
+.theme-toggle {
+    background: var(--comic-secondary);
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 2px 2px 0px #000000;
+}
+
+.theme-toggle:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px #000000;
+}
+
+.theme-toggle:active {
+    transform: translate(0, 0);
+    box-shadow: 0px 0px 0px #000000;
+}
+
+.subtitle {
+    font-family: var(--font-header);
+    font-size: 16px;
+    margin-bottom: 20px;
+    text-align: center;
+    background: var(--comic-secondary);
+    color: #000;
+    display: inline-block;
+    padding: 4px 12px;
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    transform: rotate(1deg);
+    margin-left: 10px;
+}
+
+/* Stats Panel */
+.stats {
+    background: var(--comic-surface);
+    padding: 16px;
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    box-shadow: var(--comic-shadow);
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.stats::after {
+    /* Corner accent */
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 12px;
+    height: 12px;
+    background: var(--comic-accent);
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    border-radius: 50%;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.stat-value {
+    font-family: var(--font-header);
+    font-size: 18px;
+    color: var(--comic-primary);
+}
+
+body.dark-mode .stat-value {
+    color: var(--comic-secondary);
+}
+
+/* Storage Bar */
+.storage-bar {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px dashed var(--comic-border-color);
+}
+
+.storage-bar-label {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    text-transform: uppercase;
+}
+
+.storage-progress {
+    width: 100%;
+    height: 16px;
+    background: #fff;
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.storage-progress-fill {
+    height: 100%;
+    background: repeating-linear-gradient(
+        45deg,
+        #4CAF50,
+        #4CAF50 10px,
+        #45a049 10px,
+        #45a049 20px
+    );
+    border-right: var(--comic-border-width) solid var(--comic-border-color);
+    transition: width 0.3s ease;
+}
+
+.storage-progress-fill.warning {
+    background: repeating-linear-gradient(45deg, #FF9800, #FF9800 10px, #F57C00 10px, #F57C00 20px);
+}
+
+.storage-progress-fill.danger {
+    background: repeating-linear-gradient(45deg, #F44336, #F44336 10px, #D32F2F 10px, #D32F2F 20px);
+}
+
+/* Buttons */
+.button {
+    width: 100%;
+    padding: 12px;
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    border-radius: var(--comic-radius);
+    background: var(--comic-primary);
+    color: #FFFFFF;
+    font-family: var(--font-header);
+    font-size: 18px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: var(--comic-shadow);
+    transition: all 0.1s;
+    text-transform: uppercase;
+}
+
+.button:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px var(--comic-border-color);
+}
+
+.button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0px 0px 0px var(--comic-border-color);
+}
+
+.button.secondary {
+    background: var(--comic-surface);
+    color: var(--comic-text);
+}
+
+.button.secondary:hover {
+    background: var(--comic-secondary);
+}
+
+/* Export Section */
+.export-section {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--comic-border-color);
+    border-radius: 4px;
+}
+
+body.dark-mode .export-section {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.export-format {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.export-format select {
+    flex: 1;
+    padding: 8px;
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    border-radius: var(--comic-radius);
+    background: var(--comic-surface);
+    color: var(--comic-text);
+    font-family: var(--font-body);
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px var(--comic-border-color);
+}
+
+.button-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.button-group .button {
+    margin-bottom: 0;
+    font-size: 16px;
+}
+
+/* Shortcuts */
+.shortcuts {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--comic-surface);
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    border-radius: var(--comic-radius);
+    font-size: 12px;
+    position: relative;
+}
+
+.shortcuts::before {
+    /* Speech bubble tail */
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 20px;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid var(--comic-border-color);
+}
+
+.shortcuts::after {
+    content: '';
+    position: absolute;
+    top: -7px;
+    left: 22px;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid var(--comic-surface);
+}
+
+.shortcuts-title {
+    font-family: var(--font-header);
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: var(--comic-primary);
+}
+
+body.dark-mode .shortcuts-title {
+    color: var(--comic-secondary);
+}
+
+.shortcut {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.shortcut-key {
+    font-family: 'Courier New', monospace;
+    background: var(--comic-secondary);
+    color: #000;
+    padding: 2px 6px;
+    border: 1px solid #000;
+    border-radius: 4px;
+    box-shadow: 1px 1px 0px #000;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--comic-surface);
+    color: var(--comic-text);
+    border: var(--comic-border-width) solid var(--comic-border-color);
+    box-shadow: 8px 8px 0px rgba(0,0,0,0.5);
+    padding: 24px;
+    max-width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    border-bottom: 2px dashed var(--comic-border-color);
+    padding-bottom: 10px;
+}
+
+.modal-title {
+    font-family: var(--font-header);
+    font-size: 24px;
+}
+
+.modal-close {
+    background: var(--comic-accent);
+    color: white;
+    border: 2px solid #000;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 2px 0px #000;
+}
+
+.modal-close:hover {
+    transform: scale(1.1);
+}
+
+.preview-content {
+    background: #f5f5f5;
+    padding: 16px;
+    border: 1px solid #000;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #000;
+}
+
+.modal-footer {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-button {
+    padding: 8px 16px;
+    border: 2px solid #000;
+    font-family: var(--font-header);
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 3px 3px 0px #000;
+}
+
+.modal-button.primary {
+    background: var(--comic-primary);
+    color: white;
+}
+
+.modal-button.secondary {
+    background: #fff;
+    color: #000;
+}

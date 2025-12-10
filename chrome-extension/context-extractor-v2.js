@@ -28,63 +28,63 @@ class EnhancedContextExtractor {
         const title = conversation.title || 'Conversation';
         const messages = conversation.messages || [];
         
-        // Extract all 7 components
-        const userStyle = this.extractUserStyle(messages);
-        const purpose = this.extractPurpose(conversation);
-        const keyFacts = this.extractKeyFacts(messages);
-        const corrections = this.findCorrections(messages);
-        const preferences = this.extractPreferences(messages);
-        const importantPrompts = this.extractImportantPrompts(messages);
-        const openTasks = this.extractOpenTasks(messages);
-        
         // Add metadata
         const timestamp = new Date().toLocaleString();
         const messageCount = messages.length;
         const exchanges = Math.floor(messageCount / 2);
-        const platform = conversation.platform || (title.includes('ChatGPT') ? 'ChatGPT' : title.includes('Claude') ? 'Claude' : 'Web');
+        const platform = conversation.platform || 'unknown';
         
-        let markdown = `# Context: ${title}
+        // Extract all 7 components
+        const userIntent = this.extractUserIntent(messages);
+        const conversationAbout = this.extractConversationAbout(messages);
+        const keyKnowledge = this.extractKeyKnowledge(messages);
+        const failures = this.findFailuresAndRules(messages);
+        const preferences = this.extractUserPreferences(messages);
+        const importantPrompts = this.extractMeaningfulPrompts(messages);
+        const openTasks = this.extractFutureTasks(messages);
+        
+        let markdown = `# 🧠 CONTEXT SUMMARY — ${title}
+*(Paste this in new chat for full continuity)*
 
 *Generated: ${timestamp} | ${exchanges} exchanges | Source: ${platform}*
 
 ---
 
-## 1. User Communication Style
-${userStyle}
+## 1️⃣ User Intent
+${userIntent}
 
-## 2. Purpose & Goal
-${purpose}
+## 2️⃣ What This Conversation Is About
+${conversationAbout}
 
-## 3. Key Information Summary
-${keyFacts}
+## 3️⃣ Key Knowledge We Agreed
+${keyKnowledge}
 
-## 4. Corrections & Rules to Prevent Failures
+## 4️⃣ Failures & Must-Follow Rules
 `;
 
-        if (corrections.length > 0) {
-            corrections.forEach((correction, i) => {
-                markdown += `\n**Issue ${i + 1}:**\n`;
-                markdown += `❌ Wrong approach: ${correction.issue}\n`;
-                markdown += `✅ Correct approach: ${correction.lesson}\n`;
+        if (failures.length > 0) {
+            markdown += `| Mistake in conversation | Rule to enforce |\n`;
+            markdown += `|-----------------------|----------------|\n`;
+            failures.forEach(f => {
+                markdown += `| ${f.mistake} | ${f.rule} |\n`;
             });
         } else {
-            markdown += `No corrections - conversation went smoothly.\n`;
+            markdown += `No failures detected - conversation went smoothly.\n`;
         }
         
-        markdown += `\n## 5. User Preferences & Requirements
+        markdown += `\n## 5️⃣ User Preferences
 
-`;
-        markdown += preferences;
-        
-        markdown += `\n## 6. Important Prompts to Preserve
+**The model must:**
+${preferences.must}
 
-`;
-        markdown += importantPrompts;
-        
-        markdown += `\n## 7. Open Tasks & Next Steps
+**The model must not:**
+${preferences.mustNot}
 
-`;
-        markdown += openTasks;
+## 6️⃣ Important Prompts (Meaning-Carrying Examples)
+${importantPrompts}
+
+## 7️⃣ Open Tasks / Future Actions
+${openTasks}
         
         // TOOL USAGE TRACKING (if available)
         if (this.toolTracker) {
@@ -124,14 +124,29 @@ ${keyFacts}
             }
         }
         
+        // Add compressed summary section
         markdown += `\n---
 
-## 📝 Compressed Conversation Summary
+## 📝 Full Conversation Log
 
 `;
         
-        // COMPRESSED: Only prompts + AI response summaries (NOT full text)
-        markdown += this.generateCompressedSummary(messages);
+        // Add all messages in compact format
+        let msgCount = 1;
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            if (msg.role === 'user') {
+                markdown += `\n## User Prompt ${msgCount}\n${msg.content}\n`;
+                
+                // Check for assistant response
+                if (i + 1 < messages.length && messages[i + 1].role === 'assistant') {
+                    markdown += `\n### Assistant Response ${msgCount}\n${messages[i + 1].content.substring(0, 200)}${messages[i + 1].content.length > 200 ? '...\n' : '\n'}`;
+                    i++; // Skip next as we processed it
+                }
+                
+                msgCount++;
+            }
+        }
         
         return markdown;
     }
@@ -173,7 +188,8 @@ ${keyFacts}
         
         const firstUser = conversation.messages.find(m => m.role === 'user');
         if (firstUser) {
-            return firstUser.content.substring(0, 150).trim();
+            // Don't truncate - preserve full context
+            return firstUser.content.trim();
         }
         
         return 'General discussion';
@@ -264,7 +280,8 @@ ${keyFacts}
     extractSentence(text, keyword) {
         const sentences = text.split(/[.!?]+/);
         const found = sentences.find(s => s.toLowerCase().includes(keyword.toLowerCase()));
-        return found ? found.trim().substring(0, 100) : null;
+        // Preserve full sentence - no truncation
+        return found ? found.trim() : null;
     }
     
     extractImportantPrompts(messages) {
@@ -283,7 +300,8 @@ ${keyFacts}
         
         if (top.length === 0) return 'No prompts captured.';
         
-        return top.map((p, i) => `${i + 1}. ${p.content.substring(0, 150)}${p.content.length > 150 ? '...' : ''}`).join('\n');
+        // Preserve full prompt text - no truncation
+        return top.map((p, i) => `${i + 1}. ${p.content}`).join('\n');
     }
     
     scorePromptImportance(msg, allMessages) {
@@ -317,13 +335,14 @@ ${keyFacts}
             const hasTaskKeyword = taskKeywords.some(kw => msg.content.toLowerCase().includes(kw));
             
             if (hasTaskKeyword || msg.content.includes('?')) {
-                tasks.push(msg.content.substring(0, 100));
+                // Preserve full task text
+                tasks.push(msg.content);
             }
         });
         
         if (tasks.length === 0) return 'All tasks completed.';
         
-        return tasks.slice(0, 3).map((t, i) => `${i + 1}. ${t}${t.length >= 100 ? '...' : ''}`).join('\n');
+        return tasks.slice(0, 3).map((t, i) => `${i + 1}. ${t}`).join('\n');
     }
     
     generateCompressedSummary(messages) {
@@ -519,8 +538,8 @@ ${keyFacts}
                 
                 if (isCorrection) {
                     corrections.push({
-                        issue: messages[i].content.substring(0, 150) + '...',
-                        userFix: messages[i + 1].content.substring(0, 150),
+                        issue: messages[i].content,
+                        userFix: messages[i + 1].content,
                         lesson: this.extractLesson(messages[i + 1].content)
                     });
                 }
@@ -535,12 +554,13 @@ ${keyFacts}
         const sentences = correctionText.split(/[.!?]+/).filter(s => s.trim().length > 10);
         
         if (sentences.length > 0) {
-            // Return the most informative sentence
+            // Return the most informative sentence (preserve full text)
             const longest = sentences.reduce((a, b) => a.length > b.length ? a : b);
             return longest.trim();
         }
         
-        return correctionText.substring(0, 100);
+        // Preserve full text if sentence splitting fails
+        return correctionText.trim();
     }
     
     extractKeyInformation(messages) {
@@ -599,6 +619,209 @@ ${keyFacts}
             /(no|wrong|incorrect|not this)/i.test(allMessages[index + 1].content);
         
         return hasCodeBlock || isLong || hasImportantKeyword || isFollowedByCorrection;
+    }
+    
+    // NEW: Extract user's overall intent/goal
+    extractUserIntent(messages) {
+        const userMessages = messages.filter(m => m.role === 'user');
+        if (userMessages.length === 0) return 'Unknown intent';
+        
+        // Look for goal-indicating phrases
+        const intentKeywords = [
+            /want to (create|build|make|design|implement)/i,
+            /trying to (solve|fix|understand)/i,
+            /need (help|to)/i,
+            /how (do|can|to)/i,
+            /looking for/i
+        ];
+        
+        let intent = '';
+        for (const msg of userMessages) {
+            for (const pattern of intentKeywords) {
+                const match = msg.content.match(pattern);
+                if (match) {
+                    // Extract the sentence containing the intent
+                    const sentences = msg.content.split(/[.!?]+/);
+                    const intentSentence = sentences.find(s => pattern.test(s));
+                    if (intentSentence) {
+                        intent = intentSentence.trim();
+                        break;
+                    }
+                }
+            }
+            if (intent) break;
+        }
+        
+        // Fallback: use first user message
+        if (!intent && userMessages.length > 0) {
+            intent = userMessages[0].content.split(/[.!?]+/)[0].trim();
+        }
+        
+        return intent || 'User wants to understand the topic discussed';
+    }
+    
+    // NEW: What conversation is about
+    extractConversationAbout(messages) {
+        const topics = [];
+        
+        // Look at first few user messages to understand the topic
+        const userMessages = messages.filter(m => m.role === 'user').slice(0, 5);
+        
+        for (const msg of userMessages) {
+            if (msg.content.length < 200) {
+                topics.push(`- ${msg.content}`);
+            } else {
+                topics.push(`- ${msg.content.substring(0, 150)}...`);
+            }
+        }
+        
+        return topics.length > 0 ? topics.join('\n') : 'General discussion and Q&A';
+    }
+    
+    // NEW: Extract key knowledge/agreements
+    extractKeyKnowledge(messages) {
+        const knowledge = [];
+        const assistantMessages = messages.filter(m => m.role === 'assistant');
+        
+        // Look for definitive statements
+        const knowledgePatterns = [
+            /best (approach|way|method|practice|format) (is|for)/i,
+            /you (should|must|need to)/i,
+            /the (answer|solution|key) is/i,
+            /(important|crucial|essential) to/i,
+            /works (best|better) (for|with)/i
+        ];
+        
+        for (const msg of assistantMessages) {
+            const sentences = msg.content.split(/[.!?]+/);
+            for (const sentence of sentences) {
+                if (knowledgePatterns.some(p => p.test(sentence)) && sentence.length < 200) {
+                    knowledge.push(`- ${sentence.trim()}`);
+                }
+            }
+        }
+        
+        // Limit to top 8 most relevant
+        return knowledge.slice(0, 8).join('\n') || '- Key discussion points captured above';
+    }
+    
+    // NEW: Find failures and rules
+    findFailuresAndRules(messages) {
+        const failures = [];
+        const correctionKeywords = ['no', 'wrong', 'incorrect', 'not this', 'actually', 'mistake', 'not what', "don't"];
+        
+        for (let i = 0; i < messages.length - 1; i++) {
+            if (messages[i].role === 'assistant' && messages[i + 1].role === 'user') {
+                const userResponse = messages[i + 1].content.toLowerCase();
+                
+                // Check if user is correcting
+                const isCorrection = correctionKeywords.some(kw => userResponse.includes(kw));
+                
+                if (isCorrection) {
+                    const mistake = this.summarizeMessage(messages[i].content, 80);
+                    const rule = this.summarizeMessage(messages[i + 1].content, 80);
+                    
+                    failures.push({
+                        mistake: mistake,
+                        rule: rule
+                    });
+                }
+            }
+        }
+        
+        return failures;
+    }
+    
+    // NEW: Extract user preferences in must/must not format
+    extractUserPreferences(messages) {
+        const must = [];
+        const mustNot = [];
+        
+        const userMessages = messages.filter(m => m.role === 'user');
+        
+        for (const msg of userMessages) {
+            const lower = msg.content.toLowerCase();
+            
+            // Positive preferences
+            if (/always|make sure|remember to|please|must|should|need to/i.test(lower)) {
+                const sentences = msg.content.split(/[.!?]+/);
+                for (const s of sentences) {
+                    if (/always|make sure|remember to|please|must|should|need to/i.test(s)) {
+                        must.push(`- ${s.trim()}`);
+                    }
+                }
+            }
+            
+            // Negative preferences
+            if (/never|don't|avoid|stop|shouldn't|not|no need/i.test(lower)) {
+                const sentences = msg.content.split(/[.!?]+/);
+                for (const s of sentences) {
+                    if (/never|don't|avoid|stop|shouldn't|not|no need/i.test(s)) {
+                        mustNot.push(`- ${s.trim()}`);
+                    }
+                }
+            }
+        }
+        
+        return {
+            must: must.length > 0 ? must.slice(0, 5).join('\n') : '- No specific requirements stated',
+            mustNot: mustNot.length > 0 ? mustNot.slice(0, 5).join('\n') : '- No prohibitions stated'
+        };
+    }
+    
+    // NEW: Extract meaningful prompts (not all user messages)
+    extractMeaningfulPrompts(messages) {
+        const userMessages = messages.filter(m => m.role === 'user');
+        const meaningful = [];
+        
+        for (const msg of userMessages) {
+            // Score based on meaning-carrying content
+            let score = 0;
+            
+            if (msg.content.includes('?')) score += 2;
+            if (msg.content.length > 50) score += 1;
+            if (/how|what|why|which|when|where|explain|tell me/i.test(msg.content)) score += 2;
+            if (msg.content.includes('```')) score += 3;
+            if (/create|build|make|design|implement/i.test(msg.content)) score += 2;
+            
+            if (score >= 2) {
+                meaningful.push({ content: msg.content, score });
+            }
+        }
+        
+        // Sort by score and take top 6
+        meaningful.sort((a, b) => b.score - a.score);
+        const top = meaningful.slice(0, 6);
+        
+        return top.length > 0 
+            ? top.map((p, i) => `${i + 1}. "${p.content}"`).join('\n')
+            : 'No specific prompts to preserve';
+    }
+    
+    // NEW: Extract future tasks
+    extractFutureTasks(messages) {
+        const tasks = [];
+        const taskKeywords = ['todo', 'next', 'need to', 'will', 'should', 'can you', 'later', 'future'];
+        
+        // Check last 3 messages for open items
+        const recentMessages = messages.slice(-3);
+        
+        for (const msg of recentMessages) {
+            if (msg.role === 'user' || msg.content.includes('?')) {
+                const lower = msg.content.toLowerCase();
+                if (taskKeywords.some(kw => lower.includes(kw)) || msg.content.includes('?')) {
+                    tasks.push(`- ${this.summarizeMessage(msg.content, 100)}`);
+                }
+            }
+        }
+        
+        return tasks.length > 0 ? tasks.slice(0, 3).join('\n') : '- All tasks completed';
+    }
+    
+    // Helper: Summarize message to max length
+    summarizeMessage(content, maxLen) {
+        if (content.length <= maxLen) return content;
+        return content.substring(0, maxLen) + '...';
     }
 }
 

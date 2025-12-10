@@ -39,7 +39,10 @@ function injectMemorySidebar() {
     sidebar.className = 'mf-sidebar';
     sidebar.innerHTML = `
         <div class="mf-header">
-            <h3>🧠 MemoryForge</h3>
+            <div style="display: flex; align-items: center;">
+                <button id="mf-theme-toggle" class="mf-theme-toggle" title="Toggle Dark Mode">🌙</button>
+                <h3>⚡ VOID</h3>
+            </div>
             <button id="mf-close" class="mf-close-btn">×</button>
         </div>
         <div class="mf-search-container">
@@ -63,6 +66,24 @@ function injectMemorySidebar() {
     // Event listeners
     document.getElementById('mf-close').addEventListener('click', () => {
         sidebar.classList.remove('open');
+    });
+
+    // Theme toggle
+    const themeToggle = document.getElementById('mf-theme-toggle');
+    
+    // Load saved theme
+    chrome.storage.local.get('theme', (result) => {
+        if (result.theme === 'dark') {
+            sidebar.classList.add('mf-dark-mode');
+            themeToggle.textContent = '☀️';
+        }
+    });
+
+    themeToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('mf-dark-mode');
+        const isDark = sidebar.classList.contains('mf-dark-mode');
+        themeToggle.textContent = isDark ? '☀️' : '🌙';
+        chrome.storage.local.set({ theme: isDark ? 'dark' : 'light' });
     });
 
     document.getElementById('mf-search-input').addEventListener('input', (e) => {
@@ -161,7 +182,7 @@ function addFloatingButton() {
     const button = document.createElement('button');
     button.id = 'mf-float-btn';
     button.className = 'mf-float-btn';
-    button.innerHTML = '🧠';
+    button.innerHTML = '⚡';
     button.title = 'Toggle MemoryForge';
     
     button.addEventListener('click', () => {

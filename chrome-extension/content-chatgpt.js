@@ -66,7 +66,10 @@ function injectSidebar() {
     sidebar.id = 'memoryforge-sidebar';
     sidebar.innerHTML = `
         <div class="mf-header">
-            <h3>🧠 MemoryForge</h3>
+            <div style="display: flex; align-items: center;">
+                <button id="mf-theme-toggle" class="mf-theme-toggle" title="Toggle Dark Mode">🌙</button>
+                <h3>🧠 MemoryForge</h3>
+            </div>
             <button class="mf-close" id="mf-close-btn">×</button>
         </div>
         
@@ -107,6 +110,24 @@ function injectSidebar() {
     document.getElementById('mf-close-btn').addEventListener('click', () => {
         sidebar.classList.remove('mf-open');
     });
+
+    // Theme toggle
+    const themeToggle = document.getElementById('mf-theme-toggle');
+    
+    // Load saved theme
+    chrome.storage.local.get('theme', (result) => {
+        if (result.theme === 'dark') {
+            sidebar.classList.add('mf-dark-mode');
+            themeToggle.textContent = '☀️';
+        }
+    });
+
+    themeToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('mf-dark-mode');
+        const isDark = sidebar.classList.contains('mf-dark-mode');
+        themeToggle.textContent = isDark ? '☀️' : '🌙';
+        chrome.storage.local.set({ theme: isDark ? 'dark' : 'light' });
+    });
     
     document.getElementById('mf-search-input').addEventListener('input', (e) => {
         handleSearch(e.target.value);
@@ -130,7 +151,7 @@ function injectSidebar() {
 function addFloatingButton() {
     const button = document.createElement('button');
     button.id = 'mf-float-btn';
-    button.innerHTML = '🧠';
+    button.innerHTML = '⚡';
     button.title = 'Open MemoryForge';
     
     button.addEventListener('click', () => {

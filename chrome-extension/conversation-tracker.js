@@ -8,6 +8,73 @@ class ConversationTracker {
         this.messageBuffer = [];
         this.lastMessageTime = null;
         this.conversationTimeout = 5 * 60 * 1000; // 5 minutes of inactivity = new conversation
+        this.currentUrl = window.location.href;
+        this.firstUserMessage = null; // Track first user message to identify unique conversations
+        this.urlChangeHandler = this.handleUrlChange.bind(this);
+        
+        // Monitor URL changes (navigation to different chats)
+        this.startUrlMonitoring();
+    }
+
+    // Start URL monitoring for chat switches
+    startUrlMonitoring() {
+        // Check URL every second for changes
+        setInterval(() => {
+            const newUrl = window.location.href;
+            if (newUrl !== this.currentUrl) {
+                this.handleUrlChange(newUrl);
+            }
+        }, 1000);
+    }
+
+    // Handle URL change (chat switch)
+    handleUrlChange(newUrl) {
+        console.log('🔄 URL changed - chat navigation detected');
+        console.log('Old:', this.currentUrl);
+        console.log('New:', newUrl);
+        
+        // Check if this is a significant URL change (different chat ID)
+        const oldChatId = this.extractChatId(this.currentUrl);
+        const newChatId = this.extractChatId(newUrl);
+        
+        // Only create new conversation if:
+        // 1. Both URLs have IDs AND they're different
+        // 2. Old URL had no ID but new URL has ID (entering a specific chat)
+        const shouldCreateNew = (
+            (oldChatId !== null && newChatId !== null && oldChatId !== newChatId) ||
+            (oldChatId === null && newChatId !== null)
+        );
+        
+        if (shouldCreateNew) {
+            // Definitely switched to a different chat
+            if (this.currentConversation && this.currentConversation.messages.length > 0) {
+                console.log('💾 Saving conversation before switching to different chat');
+                this.saveConversation();
+            }
+            // Reset tracker for new chat
+            this.currentConversation = null;
+            this.conversationId = null;
+            this.firstUserMessage = null;
+            console.log('✅ Ready to track new conversation');
+        } else {
+            // Same chat, just URL update (e.g., title change or content update)
+            console.log('📝 Same chat (ID: ' + newChatId + '), continuing with current conversation');
+        }
+        
+        this.currentUrl = newUrl;
+    }
+    
+    // Extract chat ID from URL
+    extractChatId(url) {
+        // ChatGPT format: /c/[chat-id]
+        const chatMatch = url.match(/\/c\/([a-f0-9-]+)/);
+        if (chatMatch) return chatMatch[1];
+        
+        // Claude format: /chat/[chat-id]
+        const claudeMatch = url.match(/\/chat\/([a-z0-9-]+)/);
+        if (claudeMatch) return claudeMatch[1];
+        
+        return null;
     }
 
     // Start a new conversation
@@ -21,7 +88,8 @@ class ConversationTracker {
             endTime: null,
             messageCount: 0,
             url: window.location.href,
-            platform: this.detectPlatform()
+            platform: this.detectPlatform(),
+            firstUserMessage: null // Track first message to identify this conversation
         };
         console.log(`🆕 Started new conversation: ${this.conversationId}`);
     }
@@ -37,16 +105,23 @@ class ConversationTracker {
     addMessage(role, content) {
         const now = Date.now();
         
-        // Check if we need to start a new conversation
-        if (!this.currentConversation || 
-            (this.lastMessageTime && now - this.lastMessageTime > this.conversationTimeout)) {
-            
-            // Save previous conversation if it exists
-            if (this.currentConversation && this.currentConversation.messages.length > 0) {
-                this.saveConversation();
-            }
-            
+        // Check if this is a different conversation by comparing first user message
+        if (!this.currentConversation) {
+            // No conversation exists, start new one
             this.startNewConversation();
+        } else if (role === 'user' && !this.currentConversation.firstUserMessage) {
+            // This is the first user message in current conversation, store it
+            this.currentConversation.firstUserMessage = content;
+            this.firstUserMessage = content;
+        } else if (this.lastMessageTime && now - this.lastMessageTime > this.conversationTimeout) {
+            // Timeout based separation (only if URL also changed or very long gap)
+            const urlChanged = window.location.href !== this.currentUrl;
+            if (urlChanged && this.currentConversation.messages.length > 0) {
+                console.log('⏱️ Timeout + URL change - saving and starting new');
+                this.saveConversation();
+                this.startNewConversation();
+            }
+            // Otherwise just continue with current conversation (same chat, just long pause)
         }
 
         // Add message to current conversation
@@ -266,6 +341,19 @@ You can now continue this conversation with full context.`;
         } catch (e) {
             console.error('Failed to cache locally:', e);
         }
+    }
+
+    // Calculate similarity between two strings (simple word overlap)
+    calculateSimilarity(str1, str2) {
+        const words1 = new Set(str1.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+        const words2 = new Set(str2.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+        
+        if (words1.size === 0 || words2.size === 0) return 0;
+        
+        const intersection = new Set([...words1].filter(x => words2.has(x)));
+        const union = new Set([...words1, ...words2]);
+        
+        return intersection.size / union.size; // Jaccard similarity
     }
 
     // Force save current conversation

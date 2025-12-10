@@ -2,622 +2,90 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <style>
-        :root {
-            --bg-color: #050510;
-            --card-bg: rgba(20, 20, 40, 0.6);
-            --primary-red: #FF2A6D;
-            --primary-blue: #05D9E8;
-            --text-main: #FFFFFF;
-            --text-muted: #A0A0C0;
-            --glow-red: 0 0 10px rgba(255, 42, 109, 0.5);
-            --glow-blue: 0 0 10px rgba(5, 217, 232, 0.5);
-            --border-radius: 8px;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            width: 380px;
-            padding: 20px;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(255, 42, 109, 0.15) 0%, transparent 20%),
-                radial-gradient(circle at 90% 80%, rgba(5, 217, 232, 0.15) 0%, transparent 20%);
-            color: var(--text-main);
-            transition: all 0.3s ease;
-            overflow-x: hidden;
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg-color); 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #333; 
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-blue); 
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 15px;
-        }
-
-        h1 {
-            font-size: 22px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            background: linear-gradient(90deg, var(--primary-blue), #fff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(5, 217, 232, 0.3);
-        }
-        
-        .theme-toggle {
-            background: transparent;
-            border: 1px solid var(--primary-blue);
-            color: var(--primary-blue);
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s;
-            box-shadow: var(--glow-blue);
-        }
-
-        .theme-toggle:hover {
-            background: var(--primary-blue);
-            color: var(--bg-color);
-            transform: rotate(15deg);
-        }
-        
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 12px;
-            margin-bottom: 20px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .subtitle::before {
-            content: '';
-            display: block;
-            width: 8px;
-            height: 8px;
-            background: var(--primary-red);
-            border-radius: 50%;
-            box-shadow: var(--glow-red);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.8); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        
-        /* Dashboard Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: var(--border-radius);
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(5, 217, 232, 0.3);
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 2px;
-            height: 100%;
-            background: var(--primary-blue);
-            box-shadow: var(--glow-blue);
-        }
-
-        .stat-card.alert::before {
-            background: var(--primary-red);
-            box-shadow: var(--glow-red);
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        .stat-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-main);
-        }
-
-        /* Storage Bar */
-        .storage-container {
-            grid-column: span 2;
-            background: var(--card-bg);
-            padding: 12px;
-            border-radius: var(--border-radius);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .storage-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }
-
-        .storage-track {
-            width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .storage-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary-blue), #0056b3);
-            width: 0%;
-            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: var(--glow-blue);
-        }
-
-        .storage-fill.warning {
-            background: linear-gradient(90deg, #ff9800, #ff5722);
-        }
-
-        .storage-fill.danger {
-            background: linear-gradient(90deg, var(--primary-red), #b00020);
-            box-shadow: var(--glow-red);
-        }
-
-        /* Controls Section */
-        .controls-section {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .export-row {
-            display: flex;
-            gap: 8px;
-        }
-
-        .custom-select-wrapper {
-            position: relative;
-            flex: 1;
-        }
-
-        select {
-            width: 100%;
-            padding: 10px 12px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--primary-blue);
-            color: var(--text-main);
-            border-radius: var(--border-radius);
-            font-size: 13px;
-            appearance: none;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.2s;
-        }
-
-        select:hover {
-            box-shadow: var(--glow-blue);
-        }
-
-        .custom-select-wrapper::after {
-            content: '▼';
-            font-size: 10px;
-            color: var(--primary-blue);
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            pointer-events: none;
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 10px 16px;
-            border: none;
-            border-radius: var(--border-radius);
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-primary {
-            background: rgba(5, 217, 232, 0.1);
-            border: 1px solid var(--primary-blue);
-            color: var(--primary-blue);
-            box-shadow: 0 0 5px rgba(5, 217, 232, 0.1);
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-blue);
-            color: #000;
-            box-shadow: var(--glow-blue);
-        }
-
-        .btn-accent {
-            background: rgba(255, 42, 109, 0.1);
-            border: 1px solid var(--primary-red);
-            color: var(--primary-red);
-        }
-
-        .btn-accent:hover {
-            background: var(--primary-red);
-            color: #fff;
-            box-shadow: var(--glow-red);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-muted);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
-            border-color: rgba(255, 255, 255, 0.3);
-        }
-
-        .btn-full {
-            width: 100%;
-        }
-
-        .btn-icon {
-            font-size: 16px;
-        }
-
-        .action-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        /* Shortcuts Footer */
-        .shortcuts-footer {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
-        .shortcut-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-        }
-
-        .key-badge {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
-            color: var(--primary-blue);
-            border: 1px solid rgba(5, 217, 232, 0.2);
-        }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(5, 5, 16, 0.85);
-            backdrop-filter: blur(5px);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .modal.active {
-            display: flex;
-            opacity: 1;
-        }
-
-        .modal-content {
-            background: #0a0a1a;
-            border: 1px solid var(--primary-blue);
-            box-shadow: 0 0 30px rgba(5, 217, 232, 0.15);
-            width: 90%;
-            max-height: 85vh;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            transform: scale(0.95);
-            transition: transform 0.3s;
-        }
-
-        .modal.active .modal-content {
-            transform: scale(1);
-        }
-
-        .modal-header {
-            padding: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(5, 217, 232, 0.05);
-        }
-
-        .modal-title {
-            color: var(--primary-blue);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 24px;
-            cursor: pointer;
-            line-height: 1;
-        }
-
-        .modal-close:hover {
-            color: var(--primary-red);
-        }
-
-        .modal-body {
-            padding: 15px;
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .preview-box {
-            background: #050510;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 12px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 12px;
-            color: #a0a0c0;
-            white-space: pre-wrap;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .modal-footer {
-            padding: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            background: rgba(0, 0, 0, 0.2);
-        }
-
-        /* Toast Notifications */
-        .toast-container {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 200;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 90%;
-            pointer-events: none;
-        }
-
-        .toast {
-            background: rgba(10, 10, 25, 0.95);
-            border: 1px solid var(--primary-blue);
-            color: var(--text-main);
-            padding: 12px 16px;
-            border-radius: var(--border-radius);
-            font-size: 13px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            animation: slideUp 0.3s ease-out forwards;
-            pointer-events: auto;
-            backdrop-filter: blur(5px);
-        }
-
-        .toast.error {
-            border-color: var(--primary-red);
-            box-shadow: 0 4px 12px rgba(255, 42, 109, 0.2);
-        }
-
-        .toast.success {
-            border-color: var(--primary-blue);
-            box-shadow: 0 4px 12px rgba(5, 217, 232, 0.2);
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        @keyframes fadeOut {
-            from { opacity: 1; transform: translateY(0); }
-            to { opacity: 0; transform: translateY(-10px); }
-        }
-
-        /* Light Mode Overrides (if user toggles) */
-        body.light-mode {
-            --bg-color: #f0f2f5;
-            --card-bg: #ffffff;
-            --text-main: #333333;
-            --text-muted: #666666;
-            background-image: none;
-        }
-        
-        body.light-mode .stat-card {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 1px solid #e1e4e8;
-        }
-        
-        body.light-mode h1 {
-            background: none;
-            -webkit-text-fill-color: #333;
-            text-shadow: none;
-        }
-
-        body.light-mode select {
-            background: #fff;
-            border-color: #ccc;
-            color: #333;
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Roboto:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="popup-comic.css">
 </head>
-<body class="dark-mode">
+<body class="light-mode">
     <div class="header">
-        <h1>Remember <span style="font-size: 12px; vertical-align: super; color: var(--primary-red);">v2.0 NEON</span></h1>
-        <button class="theme-toggle" id="themeToggle" title="Toggle Theme">☀</button>
+        <h1>🧠 Remember</h1>
+        <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
     </div>
+    <div class="subtitle">AI Memory Capture</div>
     
-    <div class="subtitle">🔥 System Status: Online • NEW UI LOADED</div>
-    
-    <!-- Dashboard Grid -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <span class="stat-label">Conversations</span>
+    <div class="stats">
+        <div class="stat">
+            <span>Conversations</span>
             <span class="stat-value" id="conversationCount">0</span>
         </div>
-        <div class="stat-card">
-            <span class="stat-label">Messages</span>
+        <div class="stat">
+            <span>Messages</span>
             <span class="stat-value" id="messageCount">0</span>
         </div>
-        <div class="stat-card">
-            <span class="stat-label">Storage Size</span>
+        <div class="stat">
+            <span>Storage</span>
             <span class="stat-value" id="storageSize">0 KB</span>
         </div>
-        <div class="stat-card">
-            <span class="stat-label">Status</span>
+        <div class="stat">
+            <span>Status</span>
             <span class="stat-value" id="status">Ready</span>
         </div>
 
-        <!-- Storage Meter -->
-        <div class="storage-container">
-            <div class="storage-header">
-                <span>Memory Usage</span>
+        <div class="storage-bar">
+            <div class="storage-bar-label">
+                <span>Storage Usage</span>
                 <span id="storagePercent">0%</span>
             </div>
-            <div class="storage-track">
-                <div class="storage-fill" id="storageProgressFill"></div>
+            <div class="storage-progress">
+                <div class="storage-progress-fill" id="storageProgressFill" style="width: 0%"></div>
             </div>
         </div>
     </div>
 
-    <!-- Controls -->
-    <div class="controls-section">
-        <div class="export-row">
-            <div class="custom-select-wrapper">
-                <select id="exportFormat">
-                    <option value="markdown">📝 Markdown</option>
-                    <option value="json">📊 JSON Data</option>
-                    <option value="txt">📄 Plain Text</option>
-                    <option value="html">🌐 Web Page</option>
-                </select>
-            </div>
-            <button class="btn btn-primary" id="previewBtn" title="Preview Export">
-                <span class="btn-icon">👁</span>
-            </button>
+    <div class="export-section">
+        <div class="export-format">
+            <select id="exportFormat">
+                <option value="markdown">📝 Markdown</option>
+                <option value="json">📊 JSON</option>
+                <option value="txt">📄 Plain Text</option>
+                <option value="html">🌐 HTML</option>
+            </select>
         </div>
-
-        <button class="btn btn-primary btn-full" id="exportBtn">
-            <span class="btn-icon">📥</span> Export Data
+        <button class="button" id="exportBtn">
+            <span>📥</span> Export Conversations
         </button>
-        
-        <button class="btn btn-secondary btn-full" id="openSidebar">
-            <span class="btn-icon">📖</span> Open Conversation Log
-        </button>
-
-        <div class="action-grid">
-            <button class="btn btn-secondary" id="mergeBtn">
-                <span class="btn-icon">🔗</span> Merge
-            </button>
-            <button class="btn btn-secondary" id="archiveBtn">
-                <span class="btn-icon">📦</span> Archive
-            </button>
-        </div>
-        
-        <button class="btn btn-secondary btn-full" id="settingsBtn">
-            <span class="btn-icon">⚙️</span> System Settings
+        <button class="button secondary" id="previewBtn">
+            <span>👁️</span> Preview Export
         </button>
     </div>
+    
+    <button class="button" id="openSidebar">
+        <span>📖</span> View Conversations
+    </button>
 
-    <!-- Shortcuts Footer -->
-    <div class="shortcuts-footer">
-        <div class="shortcut-row">
-            <span>Capture</span>
-            <span class="key-badge">Ctrl+Shift+C</span>
+    <div class="button-group">
+        <button class="button secondary" id="mergeBtn">
+            <span>🔗</span> Merge
+        </button>
+        <button class="button secondary" id="archiveBtn">
+            <span>📦</span> Archive
+        </button>
+    </div>
+    
+    <button class="button secondary" id="settingsBtn">
+        <span>⚙️</span> Settings
+    </button>
+
+    <div class="shortcuts">
+        <div class="shortcuts-title">⌨️ Keyboard Shortcuts</div>
+        <div class="shortcut">
+            <span>Capture conversation</span>
+            <span class="shortcut-key">Ctrl+Shift+C</span>
         </div>
-        <div class="shortcut-row">
-            <span>Open Log</span>
-            <span class="key-badge">Ctrl+Shift+E</span>
+        <div class="shortcut">
+            <span>Open sidebar</span>
+            <span class="shortcut-key">Ctrl+Shift+E</span>
         </div>
     </div>
 
@@ -625,23 +93,19 @@
     <div class="modal" id="previewModal">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">Data Preview</div>
+                <div class="modal-title">📋 Export Preview</div>
                 <button class="modal-close" id="previewClose">×</button>
             </div>
             <div class="modal-body">
-                <div class="preview-box" id="previewContent">Loading data stream...</div>
+                <div class="preview-content" id="previewContent">Loading...</div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="previewCancel">Cancel</button>
-                <button class="btn btn-primary" id="previewExport">Confirm Export</button>
+                <button class="modal-button secondary" id="previewCancel">Cancel</button>
+                <button class="modal-button primary" id="previewExport">Export</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Container -->
-    <div id="toast-container" class="toast-container"></div>
-
     <script src="popup.js"></script>
 </body>
 </html>
-
