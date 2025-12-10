@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Enhanced Context Extractor - Detailed Narrative Format
 // Converts conversations into LLM-friendly context with full details
 
