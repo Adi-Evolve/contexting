@@ -52,11 +52,12 @@ class ConversationTracker {
                 console.log('💾 Saving conversation before switching to different chat');
                 this.saveConversation();
             }
-            // Reset tracker for new chat
+            // Reset tracker and immediately create new conversation
             this.currentConversation = null;
             this.conversationId = null;
             this.firstUserMessage = null;
-            console.log('✅ Ready to track new conversation');
+            console.log('✅ Creating new conversation for different chat');
+            this.startNewConversation(true); // Force new conversation
         } else {
             // Same chat, just URL update (e.g., title change or content update)
             console.log('📝 Same chat (ID: ' + newChatId + '), continuing with current conversation');
