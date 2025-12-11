@@ -1,8 +1,8 @@
 {
   "name": "remember-vscode",
-  "displayName": "Remember - AI Memory",
-  "description": "Persistent memory for VS Code Copilot conversations with smart threading and export",
-  "version": "2.0.0",
+  "displayName": "Remember - AI Memory Pro",
+  "description": "Advanced persistent memory for VS Code AI assistants with smart capture and context assembly",
+  "version": "4.0.0",
   "publisher": "remember",
   "engines": {
     "vscode": "^1.85.0"
@@ -44,6 +44,16 @@
         "command": "remember.viewConversations",
         "title": "Remember: View All Conversations",
         "icon": "$(book)"
+      },
+      {
+        "command": "remember.openConversation",
+        "title": "Remember: Open Conversation",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "remember.refreshSidebar",
+        "title": "Remember: Refresh Sidebar",
+        "icon": "$(refresh)"
       },
       {
         "command": "remember.exportConversations",
@@ -90,6 +100,26 @@
         "command": "remember.clearAll",
         "title": "Remember: Clear All Conversations",
         "icon": "$(trash)"
+      },
+      {
+        "command": "remember.quickCapture",
+        "title": "Remember: Quick Capture",
+        "icon": "$(zap)"
+      },
+      {
+        "command": "remember.resumeInCopilot",
+        "title": "Remember: Resume in Copilot",
+        "icon": "$(play)"
+      },
+      {
+        "command": "remember.showEditorContext",
+        "title": "Remember: Show Editor Context",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "remember.previewContext",
+        "title": "Remember: Preview Context Assembly",
+        "icon": "$(preview)"
       }
     ],
     "keybindings": [
@@ -104,6 +134,16 @@
         "key": "ctrl+shift+e",
         "mac": "cmd+shift+e",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "remember.quickCapture",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c"
+      },
+      {
+        "command": "remember.resumeInCopilot",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r"
       }
     ],
     "viewsContainers": {
@@ -192,22 +232,40 @@
           "default": 50,
           "description": "Maximum number of active conversations to store (older ones are archived)"
         },
-        "remember.theme": {
-          "type": "string",
-          "enum": ["light", "dark", "auto"],
-          "default": "auto",
-          "description": "UI theme preference"
-        },
-        "remember.exportFormat": {
-          "type": "string",
-          "enum": ["json", "markdown", "txt", "html"],
-          "default": "markdown",
-          "description": "Default export format"
-        },
         "remember.enableKeyboardShortcuts": {
           "type": "boolean",
           "default": true,
           "description": "Enable keyboard shortcuts (Ctrl+Shift+C to capture, Ctrl+Shift+E to view)"
+        },
+        "remember.smartClipboard": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable smart clipboard monitoring for automatic conversation detection"
+        },
+        "remember.clipboardCheckInterval": {
+          "type": "number",
+          "default": 2,
+          "description": "Seconds between clipboard checks (1-10)"
+        },
+        "remember.editorContextTracking": {
+          "type": "boolean",
+          "default": true,
+          "description": "Track editor context (file edits, selections) to detect AI usage"
+        },
+        "remember.contextAssembly": {
+          "type": "object",
+          "default": {
+            "tokenLimit": 1600,
+            "includeRecentMessages": 5,
+            "includeRelevantHistory": 3
+          },
+          "description": "Context assembly configuration"
+        },
+        "remember.defaultExportFormat": {
+          "type": "string",
+          "enum": ["markdown", "json", "text", "html"],
+          "default": "markdown",
+          "description": "Default export format"
         }
       }
     }

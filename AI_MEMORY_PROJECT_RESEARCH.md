@@ -1,4 +1,4 @@
-# AI Memory Persistence System - Deep Research & Architecture
+~# AI Memory Persistence System - Deep Research & Architecture
 
 ## Executive Summary
 

@@ -97,6 +97,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function handleMessage(request) {
+    // Ensure modules are initialized (service worker may have restarted)
+    if (!contextAssembler || !hierarchyManager) {
+        console.log('🔄 Modules not initialized, reinitializing...');
+        initializeModules();
+        // Give modules a moment to initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     const actions = {
         storeConversation: () => storeConversation(request.conversation),
         getConversations: () => getConversations(request.filter),

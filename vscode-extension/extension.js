@@ -1,5 +1,5 @@
-// Remember VS Code Extension v2.0
-// Enhanced with error handling, storage management, multiple export formats, and keyboard shortcuts
+// Remember VS Code Extension v4.0
+// Enhanced with multi-layer capture, context assembler, and smart features
 
 const vscode = require('vscode');
 const fs = require('fs').promises;
@@ -11,32 +11,78 @@ const CodeLanguageDetector = require('./code-language-detector.js');
 const ToolUsageTracker = require('./tool-usage-tracker.js');
 const ErrorHandler = require('./error-handler.js');
 const StorageManager = require('./storage-manager.js');
+const ConversationSidebarProvider = require('./conversation-sidebar.js');
 
 // Load enhanced context extractor v2 (7-point format)
 const EnhancedContextExtractor = require('./context-extractor-v2.js');
 
+// NEW: Advanced capture and assembly modules
+const EditorContextCapture = require('./src/capture/editorContextCapture.js');
+const SmartClipboardMonitor = require('./src/capture/smartClipboard.js');
+const ContextAssemblerVSCode = require('./src/assembler/contextAssemblerVSCode.js');
+
 let errorHandler;
 let storageManager;
+let sidebarProvider;
 let currentConversation = null;
+
+// NEW: Advanced modules
+let editorContextCapture;
+let smartClipboard;
+let contextAssembler;
+let captureButton;
 
 /**
  * Activate extension
  */
 function activate(context) {
-    console.log('🧠 Remember VS Code Extension v2.0 activated');
+    console.log('🧠 Remember VS Code Extension v4.0 activated');
 
     // Initialize managers
     errorHandler = new ErrorHandler();
     storageManager = new StorageManager(context);
+
+    // Initialize sidebar
+    sidebarProvider = new ConversationSidebarProvider(storageManager);
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('remember-sidebar', sidebarProvider)
+    );
+
+    // NEW: Initialize advanced capture modules
+    editorContextCapture = new EditorContextCapture(context);
+    contextAssembler = new ContextAssemblerVSCode(storageManager);
+    
+    smartClipboard = new SmartClipboardMonitor(async (detectedConversation) => {
+        await handleDetectedConversation(detectedConversation);
+    });
+    
+    // NEW: Create quick capture button in status bar
+    captureButton = vscode.window.createStatusBarItem(
+        vscode.StatusBarAlignment.Right,
+        100
+    );
+    captureButton.text = '$(comment-discussion) Capture Chat';
+    captureButton.command = 'remember.quickCapture';
+    captureButton.tooltip = 'Quick capture last AI conversation (Ctrl+Shift+C)';
+    captureButton.show();
+    context.subscriptions.push(captureButton);
 
     // Register all commands
     registerCommands(context);
 
     // Start conversation monitoring
     startConversationMonitoring(context);
+    
+    // NEW: Start smart clipboard monitoring
+    smartClipboard.startMonitoring(2000);
 
-    // Show activation message
-    vscode.window.showInformationMessage('🧠 Remember: AI Memory active');
+    // Show activation message with new features
+    vscode.window.showInformationMessage('🧠 Remember v4.0: Enhanced AI Memory active!', 'What\'s New')
+        .then(action => {
+            if (action === 'What\'s New') {
+                showWhatsNew();
+            }
+        });
 }
 
 /**
@@ -106,6 +152,20 @@ function registerCommands(context) {
         })
     );
 
+    // Open conversation from sidebar
+    context.subscriptions.push(
+        vscode.commands.registerCommand('remember.openConversation', async (conversation) => {
+            await openConversationInEditor(conversation);
+        })
+    );
+
+    // Refresh sidebar
+    context.subscriptions.push(
+        vscode.commands.registerCommand('remember.refreshSidebar', () => {
+            sidebarProvider.refresh();
+        })
+    );
+
     // Download archive
     context.subscriptions.push(
         vscode.commands.registerCommand('remember.downloadArchive', async () => {
@@ -126,6 +186,99 @@ function registerCommands(context) {
             await searchConversations();
         })
     );
+    
+    // NEW: Quick capture command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('remember.quickCapture', async () => {
+            await quickCaptureConversation();
+        })
+    );
+    
+    // NEW: Resume in Copilot command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('remember.resumeInCopilot', async () => {
+            await resumeInCopilot();
+        })
+    );
+    
+    // NEW: Show editor context command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('remember.showEditorContext', async () => {
+            await showEditorContext();
+        })
+    );
+    
+    // NEW: Assemble context preview
+    context.subscriptions.push(
+        vscode.commands.registerCommand('remember.previewContext', async () => {
+            await previewContextAssembly();
+        })
+    );
+}
+
+/**
+ * Open conversation in editor with highlighting
+ */
+async function openConversationInEditor(conversation) {
+    try {
+        const doc = await vscode.workspace.openTextDocument({
+            content: formatConversationForDisplay(conversation),
+            language: 'markdown'
+        });
+        
+        const editor = await vscode.window.showTextDocument(doc, {
+            preview: false,
+            viewColumn: vscode.ViewColumn.One
+        });
+
+        // Highlight the first few lines
+        const range = new vscode.Range(0, 0, 3, 0);
+        editor.setDecorations(
+            vscode.window.createTextEditorDecorationType({
+                backgroundColor: new vscode.ThemeColor('editor.findMatchHighlightBackground')
+            }),
+            [range]
+        );
+
+        // Auto-clear highlight after 2 seconds
+        setTimeout(() => {
+            editor.setDecorations(
+                vscode.window.createTextEditorDecorationType({}),
+                []
+            );
+        }, 2000);
+
+        vscode.window.showInformationMessage(`📖 Opened: ${conversation.title}`);
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to open conversation: ${error.message}`);
+    }
+}
+
+/**
+ * Format conversation for display
+ */
+function formatConversationForDisplay(conversation) {
+    let content = `# ${conversation.title || 'Untitled Conversation'}\n\n`;
+    content += `**Platform:** ${conversation.platform || 'Unknown'}\n`;
+    content += `**Messages:** ${conversation.messageCount || 0}\n`;
+    content += `**Saved:** ${new Date(conversation.savedAt).toLocaleString()}\n\n`;
+    content += `---\n\n`;
+
+    if (conversation.messages && conversation.messages.length > 0) {
+        conversation.messages.forEach((msg, idx) => {
+            content += `## Message ${idx + 1} - ${msg.role || 'Unknown'}\n\n`;
+            content += `${msg.content || ''}\n\n`;
+            
+            if (msg.code && msg.code.length > 0) {
+                content += `### Code Snippets\n\n`;
+                msg.code.forEach(snippet => {
+                    content += `\`\`\`${snippet.language || 'text'}\n${snippet.content}\n\`\`\`\n\n`;
+                });
+            }
+        });
+    }
+
+    return content;
 }
 
 /**
@@ -157,6 +310,9 @@ async function captureCurrentConversation() {
         const result = await storageManager.storeConversation(currentConversation);
 
         if (result.success) {
+            // Refresh sidebar to show new conversation
+            sidebarProvider.refresh();
+            
             vscode.window.showInformationMessage(
                 `✅ Conversation captured! (${result.total}/${storageManager.MAX_LOCAL_CONVERSATIONS})`
             );
@@ -613,6 +769,374 @@ function parseConversationFromClipboard(text) {
         console.error('Failed to parse conversation:', error);
         return null;
     }
+}
+
+/**
+ * NEW: Handle detected conversation from clipboard
+ */
+async function handleDetectedConversation(detectedConversation) {
+    try {
+        const action = await vscode.window.showInformationMessage(
+            `🧠 ${detectedConversation.platform} conversation detected (${detectedConversation.metadata.messageCount} messages)`,
+            'Capture Now',
+            'Preview',
+            'Ignore'
+        );
+        
+        if (action === 'Capture Now') {
+            // Convert to our format
+            const conversation = {
+                id: `clipboard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                title: `${detectedConversation.platform} Conversation`,
+                messages: detectedConversation.messages,
+                messageCount: detectedConversation.metadata.messageCount,
+                startTime: Date.now(),
+                savedAt: Date.now(),
+                platform: detectedConversation.platform,
+                metadata: detectedConversation.metadata
+            };
+            
+            const result = await storageManager.storeConversation(conversation);
+            
+            if (result.success) {
+                sidebarProvider.refresh();
+                vscode.window.showInformationMessage(
+                    `✅ Captured ${detectedConversation.platform} conversation!`
+                );
+            }
+        } else if (action === 'Preview') {
+            await showConversationPreview(detectedConversation);
+        }
+    } catch (error) {
+        console.error('Failed to handle detected conversation:', error);
+    }
+}
+
+/**
+ * NEW: Quick capture conversation
+ */
+async function quickCaptureConversation() {
+    try {
+        // Check if we have editor context that suggests AI usage
+        const aiUsage = editorContextCapture.inferAIAssistantUsage();
+        
+        if (aiUsage.likelyAISession) {
+            const snapshot = editorContextCapture.buildContextSnapshot();
+            
+            // Create a conversation from editor context
+            const conversation = {
+                id: `editor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                title: `Editor Session - ${snapshot.workspace || 'Unknown'}`,
+                messages: [{
+                    role: 'system',
+                    content: `Editor context captured. Likely AI assistant session detected.\n\nFiles: ${snapshot.recentActivity.fileSwitches.length}\nEdits: ${snapshot.recentActivity.edits.length}\nSelections: ${snapshot.recentActivity.selections.length}`,
+                    timestamp: Date.now()
+                }],
+                messageCount: 1,
+                startTime: Date.now(),
+                savedAt: Date.now(),
+                platform: 'Editor Context',
+                metadata: {
+                    aiUsageInference: aiUsage,
+                    snapshot: snapshot
+                }
+            };
+            
+            const result = await storageManager.storeConversation(conversation);
+            
+            if (result.success) {
+                sidebarProvider.refresh();
+                vscode.window.showInformationMessage(
+                    `✅ Editor context captured! (Confidence: ${(aiUsage.confidence * 100).toFixed(0)}%)`
+                );
+            }
+        } else {
+            // Fall back to clipboard capture
+            await vscode.window.showInformationMessage(
+                'No active AI session detected. Copy a conversation to clipboard first.',
+                'Check Clipboard'
+            ).then(action => {
+                if (action === 'Check Clipboard') {
+                    smartClipboard.checkClipboard();
+                }
+            });
+        }
+    } catch (error) {
+        errorHandler.handleVSCodeError('quickCaptureConversation', error);
+    }
+}
+
+/**
+ * NEW: Resume conversation in Copilot
+ */
+async function resumeInCopilot() {
+    try {
+        const conversations = await storageManager.getAllConversations();
+        
+        if (conversations.length === 0) {
+            vscode.window.showInformationMessage('No conversations to resume');
+            return;
+        }
+        
+        // Let user select conversation
+        const items = conversations.map((conv, index) => ({
+            label: `${index + 1}. ${conv.title || 'Untitled'}`,
+            description: `${conv.messageCount} messages - ${new Date(conv.savedAt).toLocaleString()}`,
+            detail: conv.platform,
+            conversation: conv
+        }));
+        
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a conversation to resume',
+            matchOnDescription: true
+        });
+        
+        if (!selected) return;
+        
+        // Ask for new prompt (optional)
+        const newPrompt = await vscode.window.showInputBox({
+            placeHolder: 'Enter your new question or leave empty',
+            prompt: 'Optional: What do you want to ask?',
+            value: ''
+        });
+        
+        // Assemble context
+        vscode.window.showInformationMessage('🔧 Assembling context...');
+        
+        const assembled = await contextAssembler.assembleForNewSession(
+            selected.conversation.id,
+            newPrompt || null
+        );
+        
+        // Show preview
+        const previewAction = await showContextPreview(assembled);
+        
+        if (previewAction === 'Copy to Clipboard') {
+            await vscode.env.clipboard.writeText(assembled.formatted.copilot);
+            
+            const action = await vscode.window.showInformationMessage(
+                `✅ Context copied! (${assembled.tokens} tokens) - Ready to paste into Copilot Chat`,
+                'Open Copilot Chat',
+                'Done'
+            );
+            
+            if (action === 'Open Copilot Chat') {
+                // Try to open Copilot Chat
+                try {
+                    await vscode.commands.executeCommand('github.copilot.openChat');
+                } catch (e) {
+                    vscode.window.showWarningMessage('Could not open Copilot Chat. Please open it manually.');
+                }
+            }
+        }
+    } catch (error) {
+        errorHandler.handleVSCodeError('resumeInCopilot', error);
+    }
+}
+
+/**
+ * NEW: Show editor context
+ */
+async function showEditorContext() {
+    try {
+        const snapshot = editorContextCapture.buildContextSnapshot();
+        const aiUsage = snapshot.aiUsageInference;
+        
+        let content = `# Editor Context Snapshot\n\n`;
+        content += `**Timestamp:** ${new Date(snapshot.timestamp).toLocaleString()}\n`;
+        content += `**Workspace:** ${snapshot.workspace || 'Unknown'}\n\n`;
+        
+        if (snapshot.activeFile) {
+            content += `## Active File\n`;
+            content += `- **File:** ${snapshot.activeFile.fileName}\n`;
+            content += `- **Language:** ${snapshot.activeFile.languageId}\n`;
+            content += `- **Lines:** ${snapshot.activeFile.lineCount}\n\n`;
+        }
+        
+        content += `## AI Assistant Detection\n`;
+        content += `- **Likely AI Session:** ${aiUsage.likelyCopilotSession ? 'Yes' : 'No'}\n`;
+        content += `- **Confidence:** ${(aiUsage.confidence * 100).toFixed(0)}%\n`;
+        content += `- **Indicators:**\n`;
+        content += `  - Rapid File Switches: ${aiUsage.indicators.rapidFileSwitches}\n`;
+        content += `  - Code Selections: ${aiUsage.indicators.hasSelections}\n`;
+        content += `  - Rapid Edits: ${aiUsage.indicators.rapidEdits}\n\n`;
+        
+        content += `## Recent Activity\n`;
+        content += `- **Edits:** ${snapshot.recentActivity.edits.length}\n`;
+        content += `- **File Switches:** ${snapshot.recentActivity.fileSwitches.length}\n`;
+        content += `- **Selections:** ${snapshot.recentActivity.selections.length}\n`;
+        content += `- **Commands:** ${snapshot.recentActivity.commands.length}\n\n`;
+        
+        if (snapshot.recentActivity.selections.length > 0) {
+            content += `### Recent Code Selections\n`;
+            snapshot.recentActivity.selections.slice(0, 3).forEach((sel, idx) => {
+                content += `\n#### Selection ${idx + 1}\n`;
+                content += `**File:** ${sel.file}\n`;
+                content += `**Lines:** ${sel.range.start}-${sel.range.end}\n`;
+                content += `\`\`\`${sel.languageId}\n${sel.text}\n\`\`\`\n`;
+            });
+        }
+        
+        const doc = await vscode.workspace.openTextDocument({
+            content: content,
+            language: 'markdown'
+        });
+        
+        await vscode.window.showTextDocument(doc, { preview: false });
+    } catch (error) {
+        errorHandler.handleVSCodeError('showEditorContext', error);
+    }
+}
+
+/**
+ * NEW: Preview context assembly
+ */
+async function previewContextAssembly() {
+    try {
+        const conversations = await storageManager.getAllConversations();
+        
+        if (conversations.length === 0) {
+            vscode.window.showInformationMessage('No conversations available');
+            return;
+        }
+        
+        // Let user select conversation
+        const items = conversations.map((conv, index) => ({
+            label: `${index + 1}. ${conv.title || 'Untitled'}`,
+            description: `${conv.messageCount} messages`,
+            conversation: conv
+        }));
+        
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select conversation to preview context assembly'
+        });
+        
+        if (!selected) return;
+        
+        // Assemble context
+        const assembled = await contextAssembler.assembleForNewSession(
+            selected.conversation.id
+        );
+        
+        await showContextPreview(assembled);
+    } catch (error) {
+        errorHandler.handleVSCodeError('previewContextAssembly', error);
+    }
+}
+
+/**
+ * NEW: Show context preview
+ */
+async function showContextPreview(assembled) {
+    const content = `# Context Assembly Preview\n\n` +
+        `**Token Count:** ${assembled.tokens} / ${contextAssembler.tokenLimits.total}\n` +
+        `**Compression:** ${assembled.metadata.compressionApplied ? 'Applied' : 'Not needed'}\n` +
+        `**Platform:** ${assembled.metadata.platform}\n\n` +
+        `---\n\n` +
+        assembled.formatted.markdown;
+    
+    const doc = await vscode.workspace.openTextDocument({
+        content: content,
+        language: 'markdown'
+    });
+    
+    await vscode.window.showTextDocument(doc, { preview: false });
+    
+    return await vscode.window.showInformationMessage(
+        `📋 Context Preview (${assembled.tokens} tokens)`,
+        'Copy to Clipboard',
+        'Copy as JSON',
+        'Close'
+    );
+}
+
+/**
+ * NEW: Show conversation preview
+ */
+async function showConversationPreview(detectedConversation) {
+    let content = `# Detected ${detectedConversation.platform} Conversation\n\n`;
+    content += `**Confidence:** ${(detectedConversation.confidence * 100).toFixed(0)}%\n`;
+    content += `**Messages:** ${detectedConversation.metadata.messageCount}\n`;
+    content += `**Has Code:** ${detectedConversation.metadata.hasCodeBlocks ? 'Yes' : 'No'}\n\n`;
+    content += `---\n\n`;
+    
+    detectedConversation.messages.forEach((msg, idx) => {
+        content += `## Message ${idx + 1} - ${msg.role}\n\n`;
+        content += `${msg.content}\n\n`;
+        
+        if (msg.codeBlocks && msg.codeBlocks.length > 0) {
+            content += `### Code Blocks\n\n`;
+            msg.codeBlocks.forEach(block => {
+                content += `\`\`\`${block.language}\n${block.code}\n\`\`\`\n\n`;
+            });
+        }
+    });
+    
+    const doc = await vscode.workspace.openTextDocument({
+        content: content,
+        language: 'markdown'
+    });
+    
+    await vscode.window.showTextDocument(doc, { preview: false });
+}
+
+/**
+ * NEW: Show what's new
+ */
+async function showWhatsNew() {
+    const content = `# 🎉 What's New in Remember v4.0
+
+## 🚀 Major Features
+
+### 1. Multi-Layer Capture System
+- **Editor Context Capture**: Automatically tracks your coding activity
+- **Smart Clipboard Monitoring**: Detects conversations from 5+ AI platforms
+- **AI Session Detection**: Infers when you're using Copilot with 70%+ confidence
+
+### 2. Context Assembler V2
+- **4-Layer Architecture**: Role, Canonical State, Recent Context, Relevant History
+- **Token Budget Management**: Automatically fits within 1,600 tokens
+- **Smart Compression**: Prioritized compression when needed
+- **Multi-Format Output**: Markdown, Copilot-optimized, JSON
+
+### 3. Resume Chat Feature
+- **One-Click Resume**: Continue any conversation with full context
+- **Editable Preview**: Review and edit before sending
+- **Copilot Integration**: Auto-open Copilot Chat
+- **Cross-Platform**: Works with ChatGPT, Claude, Gemini, and more
+
+### 4. Quick Capture
+- **Status Bar Button**: Always-visible capture button
+- **Smart Detection**: Suggests capture after AI activity
+- **Keyboard Shortcut**: Ctrl+Shift+C for quick capture
+
+## 🎨 Improvements
+- Enhanced clipboard detection (5+ AI platforms)
+- Better conversation parsing
+- Improved error handling
+- Richer editor context
+
+## 🔧 New Commands
+- \`Remember: Quick Capture\` (Ctrl+Shift+C)
+- \`Remember: Resume in Copilot\`
+- \`Remember: Show Editor Context\`
+- \`Remember: Preview Context\`
+
+## 💡 Tips
+1. Copy any AI conversation to clipboard - Remember will detect it
+2. Use "Resume in Copilot" to continue conversations seamlessly
+3. Check "Show Editor Context" to see if AI usage is detected
+4. The status bar button shows when capture is available
+
+Enjoy the enhanced AI memory! 🧠✨
+`;
+    
+    const doc = await vscode.workspace.openTextDocument({
+        content: content,
+        language: 'markdown'
+    });
+    
+    await vscode.window.showTextDocument(doc, { preview: false });
 }
 
 /**
