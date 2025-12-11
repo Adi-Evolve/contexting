@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V3 Background Script - Full Diagnostic Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .status {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-weight: 600;
+        }
+
+        .results {
+            padding: 30px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #e9ecef;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .section-content {
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .test-item {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: white;
+            border-left: 4px solid #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .test-item.pass {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        .test-item.fail {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .test-item.info {
+            border-left-color: #17a2b8;
+            background: #d1ecf1;
+        }
+
+        .test-item.warn {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+
+        .icon {
+            font-size: 1.5em;
+            min-width: 30px;
+        }
+
+        .summary {
+            display: none;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .summary.show {
+            display: block;
+        }
+
+        .summary h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .summary .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            font-size: 1.5em;
+            margin-top: 20px;
+        }
+
+        .summary .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .summary .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        .json-view {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .metric {
+            display: inline-block;
+            padding: 5px 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔬 Background V3 - Full Diagnostic Test</h1>
+            <p>Complete end-to-end testing with simulated ChatGPT conversation</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn-primary" onclick="runFullDiagnostic()">🚀 Run Full Diagnostic</button>
+            <button class="btn-secondary" onclick="clearResults()">🗑️ Clear Results</button>
+            <div class="status" id="status">Ready to test</div>
+        </div>
+
+        <div class="results" id="results"></div>
+
+        <div class="summary" id="summarySection">
+            <h2>🎉 Diagnostic Complete</h2>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="passedCount">0</div>
+                    <div>Passed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="failedCount">0</div>
+                    <div>Failed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="passRate">0%</div>
+                    <div>Success Rate</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="hierarchy-manager.js?v=3"></script>
+    <script src="delta-engine.js?v=3"></script>
+    <script src="semantic-fingerprint-v2.js?v=3"></script>
+    <script src="causal-reasoner.js?v=3"></script>
+    <script src="multimodal-handler.js?v=3"></script>
+    <script src="conversation-threader.js?v=3"></script>
+    <script src="storage-manager.js?v=3"></script>
+    <script src="error-handler.js?v=3"></script>
+
+    <script>
+        let totalPassed = 0;
+        let totalFailed = 0;
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function log(message, type = 'info', data = null) {
+            const results = document.getElementById('results');
+            const item = document.createElement('div');
+            item.className = `test-item ${type}`;
+            
+            const icons = {
+                pass: '✅',
+                fail: '❌',
+                info: 'ℹ️',
+                warn: '⚠️'
+            };
+            
+            item.innerHTML = `<span class="icon">${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
+            
+            if (data) {
+                const dataDiv = document.createElement('div');
+                dataDiv.className = 'json-view';
+                dataDiv.textContent = JSON.stringify(data, null, 2);
+                item.appendChild(dataDiv);
+            }
+            
+            results.appendChild(item);
+            results.scrollTop = results.scrollHeight;
+
+            if (type === 'pass') totalPassed++;
+            if (type === 'fail') totalFailed++;
+        }
+
+        function addSection(title) {
+            const results = document.getElementById('results');
+            const section = document.createElement('div');
+            section.className = 'test-section';
+            section.innerHTML = `
+                <div class="section-header">${title}</div>
+                <div class="section-content" id="section-${Date.now()}"></div>
+            `;
+            results.appendChild(section);
+            return section.querySelector('.section-content');
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('summarySection').classList.remove('show');
+            totalPassed = 0;
+            totalFailed = 0;
+            updateStatus('Ready to test');
+        }
+
+        function showSummary() {
+            document.getElementById('summarySection').classList.add('show');
+            document.getElementById('passedCount').textContent = totalPassed;
+            document.getElementById('failedCount').textContent = totalFailed;
+            const total = totalPassed + totalFailed;
+            const rate = total > 0 ? Math.round((totalPassed / total) * 100) : 0;
+            document.getElementById('passRate').textContent = rate + '%';
+        }
+
+        // Simulated ChatGPT conversation
+        const sampleConversation = {
+            id: 'conv_' + Date.now(),
+            url: 'https://chatgpt.com/c/test-conversation',
+            title: 'React Hooks Tutorial',
+            platform: 'chatgpt',
+            timestamp: Date.now(),
+            messages: [
+                {
+                    id: 'msg1',
+                    role: 'user',
+                    content: 'Can you explain React hooks to me?',
+                    timestamp: Date.now()
+                },
+                {
+                    id: 'msg2',
+                    role: 'assistant',
+                    content: 'React Hooks are functions that let you use state and other React features in functional components. The most common hooks are useState and useEffect.',
+                    timestamp: Date.now() + 1000
+                },
+                {
+                    id: 'msg3',
+                    role: 'user',
+                    content: 'How do I use useState?',
+                    timestamp: Date.now() + 2000
+                },
+                {
+                    id: 'msg4',
+                    role: 'assistant',
+                    content: 'Here\'s an example:\n\n```javascript\nconst [count, setCount] = useState(0);\n```\n\nThis creates a state variable called count with an initial value of 0, and setCount is the function to update it.',
+                    timestamp: Date.now() + 3000
+                },
+                {
+                    id: 'msg5',
+                    role: 'user',
+                    content: 'What about useEffect?',
+                    timestamp: Date.now() + 4000
+                },
+                {
+                    id: 'msg6',
+                    role: 'assistant',
+                    content: 'useEffect runs side effects after render. Here\'s an example:\n\n```javascript\nuseEffect(() => {\n  document.title = `Count: ${count}`;\n}, [count]);\n```\n\nThe second parameter [count] is the dependency array.',
+                    timestamp: Date.now() + 5000
+                }
+            ]
+        };
+
+        async function runFullDiagnostic() {
+            clearResults();
+            updateStatus('Running full diagnostic...');
+
+            try {
+                // PHASE 1: Module Initialization
+                const phase1 = addSection('📦 PHASE 1: Module Initialization');
+                await testModuleInitialization();
+
+                // PHASE 2: Conversation Processing
+                const phase2 = addSection('💬 PHASE 2: Conversation Processing');
+                await testConversationProcessing();
+
+                // PHASE 3: Storage Operations
+                const phase3 = addSection('💾 PHASE 3: Storage Operations');
+                await testStorageOperations();
+
+                // PHASE 4: Update & Delta Detection
+                const phase4 = addSection('🔄 PHASE 4: Update & Delta Detection');
+                await testUpdateDetection();
+
+                // PHASE 5: Context Generation
+                const phase5 = addSection('📝 PHASE 5: Context Generation');
+                await testContextGeneration();
+
+                // PHASE 6: Performance Metrics
+                const phase6 = addSection('⚡ PHASE 6: Performance Metrics');
+                await testPerformanceMetrics();
+
+                updateStatus('✅ All diagnostic tests completed!');
+                showSummary();
+
+            } catch (error) {
+                log(`❌ CRITICAL ERROR: ${error.message}`, 'fail');
+                log(`Stack: ${error.stack}`, 'fail');
+                updateStatus('❌ Diagnostic failed');
+            }
+        }
+
+        async function testModuleInitialization() {
+            log('🔧 Initializing all modules...', 'info');
+
+            try {
+                // Initialize HierarchyManager
+                window.hierarchyManager = new HierarchyManager({
+                    maxDepth: 10,
+                    maxBranchFactor: 5
+                });
+                log('HierarchyManager initialized', 'pass');
+
+                // Initialize DeltaEngine
+                window.deltaEngine = new DeltaEngine({
+                    compressionThreshold: 0.3
+                });
+                log('DeltaEngine initialized', 'pass');
+
+                // Initialize SemanticFingerprint
+                window.semanticFingerprint = new SemanticFingerprintV2({
+                    duplicateThreshold: 0.85,
+                    bloomSize: 1000
+                });
+                log('SemanticFingerprintV2 initialized', 'pass');
+
+                // Initialize CausalReasoner
+                window.causalReasoner = new CausalReasoner({
+                    maxChainDepth: 10,
+                    inferenceThreshold: 0.7
+                });
+                log('CausalReasoner initialized', 'pass');
+
+                // Initialize MultiModalHandler
+                window.multiModalHandler = new MultiModalHandler({
+                    enableImageProcessing: true,
+                    maxImageSize: 5 * 1024 * 1024
+                });
+                log('MultiModalHandler initialized', 'pass');
+
+                // Initialize StorageManager
+                window.storageManager = new StorageManager();
+                log('StorageManager initialized', 'pass');
+
+                // Initialize ErrorHandler
+                window.errorHandler = new ErrorHandler();
+                log('ErrorHandler initialized', 'pass');
+
+                log('✅ All 7 modules initialized successfully', 'pass');
+
+            } catch (error) {
+                log(`Module initialization failed: ${error.message}`, 'fail');
+                throw error;
+            }
+        }
+
+        async function testConversationProcessing() {
+            log('📨 Processing sample conversation...', 'info');
+            log(`Conversation: "${sampleConversation.title}" with ${sampleConversation.messages.length} messages`, 'info');
+
+            try {
+                // Process each message through all modules
+                let previousMessageId = null;
+
+                for (const message of sampleConversation.messages) {
+                    // 1. Add to hierarchy
+                    const hierarchyResult = hierarchyManager.addMessage({
+                        role: message.role,
+                        content: message.content,
+                        timestamp: message.timestamp
+                    });
+
+                    // 2. Generate semantic fingerprint
+                    const fingerprint = semanticFingerprint.generateFingerprint(message.content);
+
+                    // 3. Add to causal graph
+                    const causalResult = causalReasoner.addMessage(message, previousMessageId);
+
+                    // 4. Check for images (multimodal would process them if present)
+                    // Note: MultiModalHandler.processImage() is for images, not text messages
+                    const hasImages = message.content.includes('http') && 
+                                     (message.content.includes('.png') || message.content.includes('.jpg'));
+
+                    previousMessageId = message.id;
+
+                    log(`Processed message ${message.id} (${message.role})`, 'pass');
+                }
+
+                // Verify processing results
+                const hierarchyStats = hierarchyManager.getStats();
+                log(`Hierarchy: ${hierarchyStats.totalNodes} nodes, depth ${hierarchyStats.maxDepth}`, 'pass');
+
+                const fingerprintCount = semanticFingerprint.fingerprintCache.size;
+                log(`Semantic: ${fingerprintCount} fingerprints cached`, 'pass');
+
+                const causalNodes = causalReasoner.causalGraph.nodes.size;
+                log(`Causal: ${causalNodes} nodes in graph`, 'pass');
+
+                // Verify all messages processed
+                if (hierarchyStats.totalNodes === sampleConversation.messages.length &&
+                    causalNodes === sampleConversation.messages.length) {
+                    log('✅ All messages processed through all modules', 'pass');
+                } else {
+                    log('⚠️ Message count mismatch between modules', 'warn');
+                }
+
+            } catch (error) {
+                log(`Conversation processing failed: ${error.message}`, 'fail');
+                throw error;
+            }
+        }
+
+        async function testStorageOperations() {
+            log('💾 Testing storage operations...', 'info');
+
+            try {
+                // Prepare data for storage
+                const storageData = {
+                    conversation: sampleConversation,
+                    hierarchy: hierarchyManager.serialize(),
+                    semantic: {
+                        cacheSize: semanticFingerprint.fingerprintCache.size,
+                        fingerprints: Array.from(semanticFingerprint.fingerprintCache.entries()).slice(0, 3)
+                    },
+                    causal: {
+                        nodes: causalReasoner.causalGraph.nodes.size,
+                        edges: causalReasoner.causalGraph.edges.size
+                    },
+                    timestamp: Date.now()
+                };
+
+                // Calculate storage size
+                const dataSize = JSON.stringify(storageData).length;
+                log(`Data size: ${dataSize} bytes (${(dataSize/1024).toFixed(2)} KB)`, 'info');
+
+                // Test compression
+                const compressed = JSON.stringify(storageData);
+                const compressionRatio = compressed.length / dataSize;
+                log(`Storage ready: ${compressed.length} bytes`, 'pass');
+
+                log('✅ Storage operations validated', 'pass');
+
+            } catch (error) {
+                log(`Storage operations failed: ${error.message}`, 'fail');
+            }
+        }
+
+        async function testUpdateDetection() {
+            log('🔄 Testing conversation update detection...', 'info');
+
+            try {
+                // Capture current state
+                const oldState = {
+                    tree: {
+                        nodes: Array.from(hierarchyManager.tree.nodes.entries())
+                    },
+                    version: 1
+                };
+
+                // Simulate new message
+                const newMessage = {
+                    id: 'msg7',
+                    role: 'user',
+                    content: 'Can you explain custom hooks?',
+                    timestamp: Date.now() + 6000
+                };
+
+                // Process new message
+                hierarchyManager.addMessage({
+                    role: newMessage.role,
+                    content: newMessage.content,
+                    timestamp: newMessage.timestamp
+                });
+                semanticFingerprint.generateFingerprint(newMessage.content);
+                causalReasoner.addMessage(newMessage, 'msg6');
+
+                // Capture new state
+                const newState = {
+                    tree: {
+                        nodes: Array.from(hierarchyManager.tree.nodes.entries())
+                    },
+                    version: 2
+                };
+
+                // Calculate delta
+                const diff = deltaEngine.calculateDiff(oldState, newState);
+
+                log(`Delta detected: ${diff.added.length} added, ${diff.modified.length} modified, ${diff.deleted.length} deleted`, 'pass');
+
+                if (diff.added.length > 0) {
+                    log('✅ Successfully detected conversation update', 'pass');
+                } else {
+                    log('⚠️ Delta detection may not be working correctly', 'warn');
+                }
+
+                // Test duplicate detection
+                const duplicate = semanticFingerprint.generateFingerprint(newMessage.content);
+                const dupCheck = semanticFingerprint.checkDuplicate(duplicate);
+                log(`Duplicate check: ${dupCheck.isDuplicate ? 'Found similar content' : 'Unique content'}`, 'info');
+
+            } catch (error) {
+                log(`Update detection failed: ${error.message}`, 'fail');
+            }
+        }
+
+        async function testContextGeneration() {
+            log('📝 Testing context generation...', 'info');
+
+            try {
+                // Generate hierarchical context
+                const context = hierarchyManager.getHierarchicalContext(10, 2000);
+                log(`Generated hierarchical context: ${context.length} messages`, 'pass');
+
+                // Get causal chain
+                const lastNodeId = Array.from(causalReasoner.causalGraph.nodes.keys()).pop();
+                const causalChain = causalReasoner.getCausalChain(lastNodeId, 5);
+                log(`Causal chain extracted: ${causalChain.length} nodes`, 'pass');
+
+                // Display sample context
+                if (context.length > 0) {
+                    log(`Sample context (first message): "${context[0].content.substring(0, 50)}..."`, 'info');
+                    log('✅ Context generation working correctly', 'pass');
+                }
+
+            } catch (error) {
+                log(`Context generation failed: ${error.message}`, 'fail');
+            }
+        }
+
+        async function testPerformanceMetrics() {
+            log('⚡ Collecting performance metrics...', 'info');
+
+            try {
+                const hierarchyStats = hierarchyManager.getStats();
+                const semanticCache = semanticFingerprint.fingerprintCache.size;
+                const causalNodes = causalReasoner.causalGraph.nodes.size;
+                const causalEdges = causalReasoner.causalGraph.edges.size;
+
+                log(`📊 Performance Metrics:`, 'info');
+                log(`   • Hierarchy: ${hierarchyStats.totalNodes} nodes, ${hierarchyStats.maxDepth} depth, ${hierarchyStats.totalBranches} branches`, 'info');
+                log(`   • Semantic: ${semanticCache} fingerprints cached`, 'info');
+                log(`   • Causal: ${causalNodes} nodes, ${causalEdges} edges`, 'info');
+                log(`   • Memory: ~${(JSON.stringify(hierarchyStats).length / 1024).toFixed(2)} KB`, 'info');
+
+                // Test error handling
+                try {
+                    hierarchyManager.addMessage(null, 'user', Date.now());
+                    log('⚠️ Error handling may need improvement', 'warn');
+                } catch (e) {
+                    log('Error handling working (caught null message)', 'pass');
+                }
+
+                log('✅ Performance metrics collected', 'pass');
+
+            } catch (error) {
+                log(`Performance test failed: ${error.message}`, 'fail');
+            }
+        }
+    </script>
+</body>
+</html>

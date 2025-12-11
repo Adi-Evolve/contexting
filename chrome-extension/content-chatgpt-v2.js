@@ -28,12 +28,22 @@ async function init() {
     // Wait for ChatGPT
     await waitForChatGPT();
     
+    // Start conversation BEFORE capturing messages
+    await conversationTracker.startNewConversation();
+    console.log('✅ Conversation initialized, ready to capture messages');
+    
     // Inject UI
     injectSidebar();
     addFloatingButton();
     
     // Start observing
     observeMessages();
+    
+    // Listen for conversation saves to refresh sidebar
+    window.addEventListener('conversationSaved', () => {
+        console.log('🔄 Conversation saved, refreshing sidebar...');
+        loadConversations();
+    });
     
     // Save on page unload
     window.addEventListener('beforeunload', () => {
@@ -53,6 +63,38 @@ function waitForChatGPT() {
             }
         }, 500);
     });
+}
+
+// Get page title from ChatGPT UI
+function getPageTitle() {
+    // Try multiple selectors for ChatGPT's title
+    const selectors = [
+        'nav a.active',
+        'nav button[aria-current="page"]',
+        'h1',
+        'title'
+    ];
+    
+    for (const selector of selectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+            const title = element.textContent.trim();
+            if (title && title !== 'New chat' && title !== 'ChatGPT' && !title.includes('ChatGPT')) {
+                console.log(`📌 Found page title: "${title}"`);
+                return title;
+            }
+        }
+    }
+    
+    // Try document title as last resort
+    const pageTitle = document.title;
+    if (pageTitle && !pageTitle.includes('ChatGPT') && pageTitle !== 'ChatGPT') {
+        console.log(`📌 Using document title: "${pageTitle}"`);
+        return pageTitle;
+    }
+    
+    console.log('⚠️ No page title found');
+    return null;
 }
 
 // Observe messages and group into conversations
@@ -78,8 +120,39 @@ function observeMessages() {
     
     observer.observe(targetNode, { childList: true, subtree: true });
     
-    // Also process existing messages
-    document.querySelectorAll('[data-message-author-role]').forEach(processMessage);
+    // Capture ALL existing messages on page load (complete conversation history)
+    console.log('📚 Capturing existing conversation history...');
+    const existingMessages = document.querySelectorAll('[data-message-author-role]');
+    console.log(`Found ${existingMessages.length} existing messages`);
+    
+    if (existingMessages.length === 0) {
+        console.warn('⚠️ No messages found! ChatGPT may still be loading.');
+    } else {
+        existingMessages.forEach((msg, index) => {
+            console.log(`Processing message ${index + 1}/${existingMessages.length}`);
+            processMessage(msg);
+        });
+        console.log(`✅ Finished processing ${existingMessages.length} existing messages`);
+    }
+    
+    // Try to get title multiple times (ChatGPT loads title async)
+    let titleAttempts = 0;
+    const trySetTitle = () => {
+        titleAttempts++;
+        const pageTitle = getPageTitle();
+        if (pageTitle && conversationTracker.currentConversation) {
+            conversationTracker.currentConversation.title = pageTitle;
+            console.log(`✅ Set conversation title (attempt ${titleAttempts}): "${pageTitle}"`);
+            // Save immediately after setting title
+            conversationTracker.saveConversation();
+        } else if (titleAttempts < 5) {
+            console.log(`⏳ Title not ready yet, retrying... (attempt ${titleAttempts}/5)`);
+            setTimeout(trySetTitle, 1000);
+        } else {
+            console.warn('⚠️ Could not get page title after 5 attempts');
+        }
+    };
+    setTimeout(trySetTitle, 500);
     
     console.log('👀 Observing messages...');
 }
@@ -103,18 +176,18 @@ setInterval(() => {
 // Process individual message and add to conversation
 const processedMessages = new Map(); // Store URL + messageId to track per-chat
 const MAX_PROCESSED_MESSAGES = 200; // Limit to prevent memory bloat
+let messageProcessCount = 0; // Track total messages processed
+
+// Conversation linking state
+let linkingMode = false;
+let selectedConversations = new Set();
 
 function processMessage(messageElement) {
-    // Avoid processing same message twice in same chat
-    const messageId = messageElement.getAttribute('data-message-id');
-    const currentUrl = window.location.href;
-    const uniqueKey = `${currentUrl}:::${messageId}`;
-    
-    if (messageId && processedMessages.has(uniqueKey)) return;
-    if (messageId) processedMessages.set(uniqueKey, true);
-    
     const role = messageElement.getAttribute('data-message-author-role');
-    if (!role) return;
+    if (!role) {
+        console.log('⏭️ Skipping element - no role attribute');
+        return;
+    }
     
     // Extract full content
     const contentElement = messageElement.querySelector('.markdown') || 
@@ -122,12 +195,28 @@ function processMessage(messageElement) {
                           messageElement;
     
     const content = contentElement.textContent.trim();
-    if (!content || content.length < 5) return;
+    if (!content || content.length < 5) {
+        console.log(`⏭️ Skipping ${role} - content too short (${content.length} chars)`);
+        return;
+    }
+    
+    // Check if already processed using content hash for reliability
+    const messageId = messageElement.getAttribute('data-message-id');
+    const currentUrl = window.location.href;
+    const contentHash = content.substring(0, 50); // Use first 50 chars as identifier
+    const uniqueKey = messageId ? `${currentUrl}:::${messageId}` : `${currentUrl}:::${contentHash}`;
+    
+    if (processedMessages.has(uniqueKey)) {
+        console.log(`⏭️ Already processed ${role} message`);
+        return;
+    }
+    processedMessages.set(uniqueKey, true);
     
     // Add to conversation tracker
     conversationTracker.addMessage(role, content);
+    messageProcessCount++;
     
-    console.log(`📝 Captured ${role} message (${content.length} chars)`);
+    console.log(`✅ Captured ${role} message #${messageProcessCount} (${content.length} chars): "${content.substring(0, 50)}..."`);
     
     // Clean up old processed messages to prevent memory bloat
     if (processedMessages.size > MAX_PROCESSED_MESSAGES) {
@@ -172,9 +261,9 @@ function injectSidebar() {
         </div>
         
         <div class="mf-actions">
+            <button id="mf-link-mode">🔗 Link Conversations</button>
             <button id="mf-import">📤 Import Context</button>
             <button id="mf-export">📥 Export All</button>
-            <button id="mf-save-current">💾 Save Current</button>
         </div>
         
         <input type="file" id="mf-import-file" accept=".md,.txt,.json" style="display: none;" />
@@ -227,7 +316,18 @@ function injectSidebar() {
     
     document.getElementById('mf-import-file').addEventListener('change', handleImportFile);
     document.getElementById('mf-export').addEventListener('click', exportAllConversations);
-    document.getElementById('mf-save-current').addEventListener('click', saveCurrentConversation);
+    document.getElementById('mf-link-mode').addEventListener('click', () => {
+        if (linkingMode && selectedConversations.size >= 2) {
+            mergeSelectedConversations();
+        } else {
+            toggleLinkMode();
+        }
+    });
+    
+    // Force save current conversation when opening sidebar
+    if (typeof conversationTracker !== 'undefined') {
+        conversationTracker.saveConversation();
+    }
     
     // Load conversations
     loadConversations();
@@ -265,7 +365,11 @@ function loadConversations(filter = 'all') {
             return;
         }
         if (response && response.conversations) {
-            displayConversations(response.conversations);
+            // Sort by timestamp descending (newest first)
+            const sorted = response.conversations.sort((a, b) => 
+                (b.timestamp || b.startTime || 0) - (a.timestamp || a.startTime || 0)
+            );
+            displayConversations(sorted);
             updateStats(response.stats);
         }
     });
@@ -281,21 +385,33 @@ function displayConversations(conversations) {
     }
     
     container.innerHTML = conversations.map(conv => `
-        <div class="mf-conversation-card" data-id="${conv.id}">
+        <div class="mf-conversation-card ${linkingMode ? 'mf-link-mode' : ''}" data-id="${conv.id}">
+            ${linkingMode ? `<input type="checkbox" class="mf-link-checkbox" data-id="${conv.id}" ${selectedConversations.has(conv.id) ? 'checked' : ''}>` : ''}
             <div class="mf-conv-header">
-                <span class="mf-conv-title">${escapeHtml(conv.title || 'Untitled')}</span>
-                <span class="mf-conv-count">${conv.messageCount} msgs</span>
+                <span class="mf-conv-title">${escapeHtml(conv.title || conv.messages[0]?.content?.substring(0, 50) || 'Untitled')}</span>
+                <span class="mf-conv-count">${(conv.messages?.length || conv.messageCount || 0)} msgs</span>
             </div>
-            <div class="mf-conv-time">${formatTime(conv.startTime)}</div>
-            <div class="mf-conv-preview">${escapeHtml(conv.messages[0]?.content.substring(0, 80) || '')}...</div>
+            <div class="mf-conv-time">${formatTime(conv.startTime || conv.timestamp)}</div>
+            <div class="mf-conv-preview">${escapeHtml(conv.messages[0]?.content?.substring(0, 80) || '')}...</div>
             <div class="mf-conv-actions">
-                <button class="mf-btn-small mf-copy-btn" data-id="${conv.id}">📋 Copy</button>
-                <button class="mf-btn-small mf-view-btn" data-id="${conv.id}">👁️ View</button>
+                <button class="mf-btn-small mf-resume-btn" data-id="${conv.id}" title="Resume in new chat (Smart Context)">🔄 Resume</button>
+                <button class="mf-btn-small mf-insert-btn" data-id="${conv.id}" title="Insert into chat">✨ Insert</button>
+                <button class="mf-btn-small mf-copy-btn" data-id="${conv.id}" title="Copy to clipboard">📋 Copy</button>
+                <button class="mf-btn-small mf-view-btn" data-id="${conv.id}" title="View details">👁️ View</button>
+                <button class="mf-btn-small mf-delete-btn" data-id="${conv.id}" title="Delete conversation">🗑️ Delete</button>
             </div>
         </div>
     `).join('');
     
     // Add event listeners to buttons
+    container.querySelectorAll('.mf-resume-btn').forEach(btn => {
+        btn.addEventListener('click', () => resumeConversation(btn.dataset.id));
+    });
+    
+    container.querySelectorAll('.mf-insert-btn').forEach(btn => {
+        btn.addEventListener('click', () => insertConversation(btn.dataset.id));
+    });
+    
     container.querySelectorAll('.mf-copy-btn').forEach(btn => {
         btn.addEventListener('click', () => copyConversation(btn.dataset.id));
     });
@@ -303,36 +419,54 @@ function displayConversations(conversations) {
     container.querySelectorAll('.mf-view-btn').forEach(btn => {
         btn.addEventListener('click', () => viewConversation(btn.dataset.id));
     });
+    
+    container.querySelectorAll('.mf-delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteConversation(btn.dataset.id));
+    });
+    
+    // Add checkbox listeners for linking mode
+    if (linkingMode) {
+        container.querySelectorAll('.mf-link-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const id = e.target.dataset.id;
+                if (e.target.checked) {
+                    selectedConversations.add(id);
+                } else {
+                    selectedConversations.delete(id);
+                }
+                updateLinkButton();
+            });
+        });
+    }
 }
 
-// Copy conversation in LLM-ready format (optimal 7-point structure)
+// Copy conversation in LLM-ready format (using smart context assembly)
 function copyConversation(conversationId) {
+    showToast('⏳ Assembling smart context...');
+    
     chrome.runtime.sendMessage({
-        action: 'getConversation',
-        id: conversationId
+        action: 'assembleContext',
+        conversationId: conversationId,
+        userQuery: null
     }, (response) => {
-        if (response && response.conversation) {
-            const conv = response.conversation;
-            
-            // ALWAYS use optimalContext (7-point format)
-            if (conv.summary.optimalContext) {
-                const text = conv.summary.optimalContext;
-                console.log('✅ Using 7-point optimalContext format:', text.substring(0, 100) + '...');
-                navigator.clipboard.writeText(text).then(() => {
-                    showToast('✅ Copied 7-point context!');
-                }).catch(() => {
-                    showToast('❌ Copy failed');
-                });
-            } else {
-                // If optimalContext is missing, there's a problem
-                console.error('❌ optimalContext is NULL! Falling back to contextPrompt (old format)');
-                const text = conv.summary.contextPrompt || 'Error: No context available';
-                navigator.clipboard.writeText(text).then(() => {
-                    showToast('⚠️ Copied (old format - check console)');
-                }).catch(() => {
-                    showToast('❌ Copy failed');
-                });
-            }
+        if (chrome.runtime.lastError) {
+            showToast('❌ Error: Extension context lost');
+            return;
+        }
+        
+        if (response && response.success) {
+            const text = response.prompt;
+            console.log('✅ Using smart context assembly:', text.substring(0, 100) + '...');
+            navigator.clipboard.writeText(text).then(() => {
+                const tokenInfo = response.wasTruncated 
+                    ? ` (${response.tokenEstimate} tokens, truncated)`
+                    : ` (${response.tokenEstimate} tokens)`;
+                showToast('✅ Copied smart context!' + tokenInfo);
+            }).catch(() => {
+                showToast('❌ Copy failed');
+            });
+        } else {
+            showToast('❌ Failed to assemble context: ' + (response?.error || 'Unknown error'));
         }
     });
 }
@@ -343,23 +477,29 @@ function insertConversation(conversationId) {
         action: 'getConversation',
         id: conversationId
     }, (response) => {
-        if (response && response.conversation) {
-            const conv = response.conversation;
-            const text = conv.summary.contextPrompt;
+        if (chrome.runtime.lastError) {
+            showToast('❌ Error: Extension context lost');
+            return;
+        }
+        
+        const conv = response; // response IS the conversation
+        
+        if (conv && conv.summary) {
+            // Use optimalContext (7-point format) if available
+            const text = conv.summary.optimalContext || conv.summary.contextPrompt || 'Error: No context available';
             
-            // Find ChatGPT input
-            const input = document.querySelector('#prompt-textarea') ||
-                         document.querySelector('textarea[placeholder*="Message"]') ||
-                         document.querySelector('textarea');
+            // Use the robust insertTextIntoChat function
+            const success = insertTextIntoChat(text);
             
-            if (input) {
-                input.value = text;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.focus();
-                showToast('✅ Inserted into chat!');
+            if (success) {
+                // Close sidebar
+                document.getElementById('memoryforge-sidebar').classList.remove('mf-open');
+                showToast('✨ Context inserted into chat!');
             } else {
-                showToast('❌ Could not find input');
+                showToast('❌ Could not find input field');
             }
+        } else {
+            showToast('❌ No context available');
         }
     });
 }
@@ -370,8 +510,37 @@ function viewConversation(conversationId) {
         action: 'getConversation',
         id: conversationId
     }, (response) => {
-        if (response && response.conversation) {
-            showConversationModal(response.conversation);
+        if (chrome.runtime.lastError) {
+            showToast('❌ Error: Extension context lost');
+            return;
+        }
+        
+        const conv = response; // response IS the conversation
+        
+        if (conv) {
+            showConversationModal(conv);
+        } else {
+            showToast('❌ Conversation not found');
+        }
+    });
+}
+
+// Delete conversation (no confirmation)
+function deleteConversation(conversationId) {
+    chrome.runtime.sendMessage({
+        action: 'deleteConversation',
+        id: conversationId
+    }, (response) => {
+        if (chrome.runtime.lastError) {
+            showToast('❌ Error: Extension context lost');
+            return;
+        }
+        
+        if (response?.success) {
+            showToast('🗑️ Conversation deleted');
+            loadConversations(); // Refresh list
+        } else {
+            showToast('❌ Delete failed');
         }
     });
 }
@@ -539,17 +708,25 @@ function filterConversations(filter) {
 // Export all conversations
 function exportAllConversations() {
     chrome.runtime.sendMessage({
-        action: 'exportConversations'
+        action: 'exportConversations',
+        format: 'json'
     }, (response) => {
-        if (response && response.data) {
-            const blob = new Blob([response.data], { type: 'application/json' });
+        if (chrome.runtime.lastError) {
+            showToast('❌ Error: Extension context lost');
+            return;
+        }
+        
+        if (response && response.success) {
+            const blob = new Blob([response.data], { type: response.mimeType });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `memoryforge_export_${Date.now()}.json`;
+            a.download = response.filename;
             a.click();
             URL.revokeObjectURL(url);
             showToast('✅ Exported all conversations!');
+        } else {
+            showToast('❌ Export failed');
         }
     });
 }
@@ -640,30 +817,6 @@ function handleImportFile(event) {
     event.target.value = '';
 }
 
-// Insert text into ChatGPT input
-function insertTextIntoChat(text) {
-    const inputSelector = 'textarea[data-id], textarea#prompt-textarea, div[contenteditable="true"]';
-    const input = document.querySelector(inputSelector);
-    
-    if (!input) {
-        console.warn('Chat input not found');
-        return false;
-    }
-    
-    if (input.tagName === 'TEXTAREA') {
-        input.value = text;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    } else {
-        input.textContent = text;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    
-    // Focus on input
-    input.focus();
-    
-    return true;
-}
-
 // Show import preview modal
 function showImportPreview(text) {
     const modal = document.createElement('div');
@@ -703,3 +856,470 @@ function showToast(message, duration = 2000) {
         setTimeout(() => toast.remove(), 300);
     }, duration);
 }
+
+// === Conversation Linking Functions ===
+
+function toggleLinkMode() {
+    linkingMode = !linkingMode;
+    const btn = document.getElementById('mf-link-mode');
+    
+    if (linkingMode) {
+        btn.textContent = '✅ Merge Selected';
+        btn.classList.add('mf-active');
+        selectedConversations.clear();
+    } else {
+        btn.textContent = '🔗 Link Conversations';
+        btn.classList.remove('mf-active');
+        selectedConversations.clear();
+    }
+    
+    loadConversations(); // Reload to show/hide checkboxes
+}
+
+function updateLinkButton() {
+    const btn = document.getElementById('mf-link-mode');
+    if (selectedConversations.size >= 2) {
+        btn.textContent = `✅ Merge ${selectedConversations.size} Conversations`;
+    } else {
+        btn.textContent = '✅ Select 2+ to Merge';
+    }
+}
+
+function mergeSelectedConversations() {
+    if (selectedConversations.size < 2) {
+        showToast('⚠️ Select at least 2 conversations to merge');
+        return;
+    }
+    
+    const ids = Array.from(selectedConversations);
+    
+    chrome.runtime.sendMessage({
+        action: 'mergeConversations',
+        conversationIds: ids
+    }, (response) => {
+        if (response && response.success) {
+            showToast(`✅ Merged ${ids.length} conversations!`);
+            linkingMode = false;
+            selectedConversations.clear();
+            toggleLinkMode();
+            loadConversations();
+        } else {
+            showToast('❌ Failed to merge conversations');
+        }
+    });
+}
+
+// ============================================================================
+// RESUME CONVERSATION - SMART CONTEXT ASSEMBLY
+// ============================================================================
+
+/**
+ * Resume conversation with smart context assembly (4-layer approach)
+ * @param {string} conversationId - ID of conversation to resume
+ */
+function resumeConversation(conversationId) {
+    console.log('🔄 Resuming conversation:', conversationId);
+    
+    // Show loading toast
+    showToast('⏳ Assembling smart context...');
+    
+    // Call background service to assemble context
+    chrome.runtime.sendMessage({
+        action: 'assembleContext',
+        conversationId: conversationId,
+        userQuery: null  // Can be enhanced to ask user for specific query
+    }, (response) => {
+        if (chrome.runtime.lastError) {
+            showToast('❌ Error: Extension context lost');
+            return;
+        }
+        
+        if (response && response.success) {
+            console.log('✅ Context assembled:', response);
+            showContextPreviewModal(response, conversationId);
+        } else {
+            showToast(`❌ Failed to assemble context: ${response.error || 'Unknown error'}`);
+            console.error('Context assembly error:', response);
+        }
+    });
+}
+
+/**
+ * Show context preview modal with layer breakdown
+ * @param {Object} contextData - Assembled context data
+ * @param {string} conversationId - Original conversation ID
+ */
+function showContextPreviewModal(contextData, conversationId) {
+    // Remove existing modal if present
+    const existingModal = document.getElementById('mf-context-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.id = 'mf-context-modal';
+    modal.className = 'mf-modal-overlay';
+    
+    // Calculate token breakdown
+    const tokenBreakdown = contextData.tokenBreakdown || {};
+    const layer0Tokens = tokenBreakdown.layer0 || 0;
+    const layer1Tokens = tokenBreakdown.layer1 || 0;
+    const layer2Tokens = tokenBreakdown.layer2 || 0;
+    const layer3Tokens = tokenBreakdown.layer3 || 0;
+    const totalTokens = contextData.tokenEstimate || 0;
+    
+    // Check if context was truncated
+    const wasTruncated = contextData.wasTruncated || false;
+    const originalTokens = contextData.originalTokenCount || totalTokens;
+    
+    // Check for contradictions
+    const contradictions = contextData.contradictions || [];
+    const hasContradictions = contradictions.length > 0;
+    
+    modal.innerHTML = `
+        <div class="mf-modal-content mf-context-modal">
+            <div class="mf-modal-header">
+                <h2>🔄 Resume Chat - Smart Context</h2>
+                <button class="mf-modal-close" id="mf-close-modal">×</button>
+            </div>
+            
+            <div class="mf-modal-body">
+                <!-- Token Summary -->
+                <div class="mf-token-summary">
+                    <div class="mf-token-stat">
+                        <span class="mf-token-label">Total Tokens:</span>
+                        <span class="mf-token-value ${totalTokens > 1600 ? 'mf-token-warning' : 'mf-token-good'}">${totalTokens}</span>
+                    </div>
+                    ${wasTruncated ? `
+                    <div class="mf-truncation-notice">
+                        <div class="mf-truncation-header">
+                            <span class="mf-warning-icon">⚠️</span>
+                            <span>Content Truncated to Fit Budget</span>
+                        </div>
+                        <div class="mf-truncation-details">
+                            <div class="mf-truncation-stat">
+                                <span>Original:</span>
+                                <span>${originalTokens} tokens</span>
+                            </div>
+                            <div class="mf-truncation-stat">
+                                <span>After Truncation:</span>
+                                <span>${totalTokens} tokens</span>
+                            </div>
+                            <div class="mf-truncation-stat">
+                                <span>Saved:</span>
+                                <span>${originalTokens - totalTokens} tokens (${Math.round((1 - totalTokens/originalTokens) * 100)}%)</span>
+                            </div>
+                            <div class="mf-truncation-info">
+                                💡 Truncation preserves most recent messages and key decisions while removing older history.
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    <div class="mf-token-breakdown">
+                        ${layer0Tokens > 0 ? `<span class="mf-token-chip">Layer 0: ${layer0Tokens}</span>` : ''}
+                        <span class="mf-token-chip">Layer 1: ${layer1Tokens}</span>
+                        <span class="mf-token-chip">Layer 2: ${layer2Tokens}</span>
+                        ${layer3Tokens > 0 ? `<span class="mf-token-chip">Layer 3: ${layer3Tokens}</span>` : ''}
+                    </div>
+                </div>
+                
+                <!-- Contradictions Warning -->
+                ${hasContradictions ? `
+                <div class="mf-contradiction-warning">
+                    <div class="mf-warning-header">
+                        <span class="mf-warning-icon">⚠️</span>
+                        <span class="mf-warning-text">${contradictions.length} Contradiction${contradictions.length > 1 ? 's' : ''} Detected</span>
+                    </div>
+                    <div class="mf-contradiction-list">
+                        ${contradictions.map(c => `
+                            <div class="mf-contradiction-item">
+                                <strong>Decision A:</strong> ${escapeHtml(c.decision1?.text || 'Unknown')}<br>
+                                <strong>Decision B:</strong> ${escapeHtml(c.decision2?.text || 'Unknown')}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <!-- Model Selector -->
+                <div class="mf-model-selector">
+                    <label for="mf-model-select">Export Format:</label>
+                    <select id="mf-model-select" class="mf-select">
+                        <option value="chatgpt" selected>ChatGPT (JSON)</option>
+                        <option value="claude">Claude (XML)</option>
+                        <option value="gemini">Gemini (Structured JSON)</option>
+                        <option value="llama">LLaMA (Markdown)</option>
+                    </select>
+                    <button class="mf-btn-small" id="mf-change-format">Update Preview</button>
+                </div>
+                
+                <!-- Context Preview -->
+                <div class="mf-context-preview">
+                    <div class="mf-preview-header">
+                        <strong>Context Preview:</strong>
+                        <span class="mf-preview-hint">(Editable)</span>
+                    </div>
+                    <textarea id="mf-context-text" class="mf-context-textarea" rows="15">${escapeHtml(contextData.prompt)}</textarea>
+                </div>
+            </div>
+            
+            <div class="mf-modal-footer">
+                <button class="mf-btn-primary" id="mf-copy-context">
+                    📋 Copy to Clipboard
+                </button>
+                <button class="mf-btn-primary" id="mf-insert-context">
+                    ✨ Insert into Chat
+                </button>
+                <button class="mf-btn-secondary" id="mf-cancel-modal">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add event listeners
+    document.getElementById('mf-copy-context').addEventListener('click', () => {
+        const textarea = document.getElementById('mf-context-text');
+        copyTextToClipboard(textarea.value);
+        showToast('✅ Context copied to clipboard!');
+    });
+    
+    document.getElementById('mf-insert-context').addEventListener('click', () => {
+        const textarea = document.getElementById('mf-context-text');
+        insertTextIntoChat(textarea.value);
+        modal.remove();
+        showToast('✅ Context inserted into chat!');
+    });
+    
+    document.getElementById('mf-cancel-modal').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    document.getElementById('mf-close-modal').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    document.getElementById('mf-change-format').addEventListener('click', () => {
+        const modelSelect = document.getElementById('mf-model-select');
+        const selectedModel = modelSelect.value;
+        
+        showToast('⏳ Formatting for ' + selectedModel + '...');
+        
+        chrome.runtime.sendMessage({
+            action: 'exportContextForModel',
+            conversationId: conversationId,
+            model: selectedModel,
+            userQuery: null
+        }, (response) => {
+            if (response && response.success) {
+                const textarea = document.getElementById('mf-context-text');
+                
+                // Handle different format types
+                if (typeof response.formatted === 'string') {
+                    textarea.value = response.formatted;
+                } else if (typeof response.formatted === 'object') {
+                    textarea.value = JSON.stringify(response.formatted, null, 2);
+                }
+                
+                showToast('✅ Format updated!');
+            } else {
+                showToast('❌ Failed to format: ' + (response.error || 'Unknown error'));
+            }
+        });
+    });
+    
+    // Close modal on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+/**
+ * Copy text to clipboard
+ * @param {string} text - Text to copy
+ */
+function copyTextToClipboard(text) {
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(err => {
+            console.error('Clipboard API failed, using fallback', err);
+            fallbackCopyToClipboard(text);
+        });
+    } else {
+        fallbackCopyToClipboard(text);
+    }
+}
+
+/**
+ * Fallback copy method
+ * @param {string} text - Text to copy
+ */
+function fallbackCopyToClipboard(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+}
+
+/**
+ * Insert text into chat input
+ * @param {string} text - Text to insert
+ */
+function insertTextIntoChat(text) {
+    console.log('🔍 Attempting to insert text into chat...');
+    
+    // Try multiple selectors for ChatGPT's evolving DOM
+    const selectors = [
+        '#prompt-textarea',  // Main ChatGPT textarea
+        'textarea[data-id]',  // Alternative data-id textarea
+        'textarea[placeholder*="Message"]',  // Generic message input
+        'div[contenteditable="true"]',  // Contenteditable div
+        'textarea',  // Any textarea fallback
+    ];
+    
+    for (const selector of selectors) {
+        const inputElement = document.querySelector(selector);
+        if (inputElement) {
+            console.log(`✅ Found input element: ${selector}`);
+            
+            // Handle textarea
+            if (inputElement.tagName === 'TEXTAREA') {
+                inputElement.value = text;
+                inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+            } 
+            // Handle contenteditable div
+            else if (inputElement.contentEditable === 'true') {
+                inputElement.textContent = text;
+                inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            
+            // Focus and trigger React update (for ChatGPT)
+            inputElement.focus();
+            
+            // Dispatch additional events for React components
+            const reactEvents = ['input', 'change', 'keyup', 'blur', 'focus'];
+            reactEvents.forEach(eventType => {
+                inputElement.dispatchEvent(new Event(eventType, { bubbles: true }));
+            });
+            
+            console.log('✅ Text inserted successfully');
+            return true;
+        }
+    }
+    
+    console.warn('❌ Could not find chat input element');
+    console.log('Available textareas:', document.querySelectorAll('textarea'));
+    console.log('Available contenteditable:', document.querySelectorAll('[contenteditable="true"]'));
+    showToast('⚠️ Could not insert automatically - text copied to clipboard instead');
+    
+    // Fallback: Copy to clipboard
+    copyTextToClipboard(text);
+    return false;
+}
+
+// ============================================================================
+// KEYBOARD SHORTCUTS
+// ============================================================================
+
+// Add keyboard shortcut listeners
+document.addEventListener('keydown', (e) => {
+    // Ctrl+Shift+R: Resume Chat (on current conversation)
+    if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        if (conversationTracker && conversationTracker.conversationId) {
+            resumeConversation(conversationTracker.conversationId);
+            showToast('⌨️ Resumed current conversation');
+        } else {
+            showToast('⚠️ No active conversation to resume');
+        }
+    }
+    
+    // Ctrl+Shift+E: Toggle sidebar
+    if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        const sidebar = document.querySelector('.mf-sidebar');
+        if (sidebar) {
+            sidebar.classList.toggle('mf-open');
+            showToast(sidebar.classList.contains('mf-open') ? '📖 Sidebar opened' : '📖 Sidebar closed');
+        }
+    }
+    
+    // Ctrl+Shift+C: Copy current conversation context
+    if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        if (conversationTracker && conversationTracker.conversationId) {
+            copyConversation(conversationTracker.conversationId);
+        } else {
+            showToast('⚠️ No active conversation');
+        }
+    }
+    
+    // Escape: Close modal
+    if (e.key === 'Escape') {
+        const modal = document.querySelector('.mf-modal-overlay');
+        if (modal) {
+            modal.remove();
+        }
+    }
+});
+
+console.log('✅ VOID Content Script V2: Resume Chat feature loaded!');
+console.log('⌨️ Keyboard Shortcuts: Ctrl+Shift+R (Resume), Ctrl+Shift+E (Sidebar), Ctrl+Shift+C (Copy)');
+
+// ============================================================================
+// MESSAGE LISTENER (for popup communication)
+// ============================================================================
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'openSidebar') {
+        const sidebar = document.querySelector('.mf-sidebar');
+        if (sidebar) {
+            sidebar.classList.add('mf-open');
+            
+            // If a specific conversation ID is provided, scroll to it and highlight it
+            if (request.conversationId) {
+                setTimeout(() => {
+                    const conversationCard = document.querySelector(`[data-id="${request.conversationId}"]`);
+                    if (conversationCard) {
+                        // Scroll to conversation
+                        conversationCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        // Highlight it temporarily
+                        conversationCard.style.backgroundColor = 'var(--comic-secondary)';
+                        setTimeout(() => {
+                            conversationCard.style.backgroundColor = '';
+                        }, 2000);
+                    }
+                }, 300);
+            }
+            
+            sendResponse({ success: true });
+        } else {
+            sendResponse({ success: false, error: 'Sidebar not found' });
+        }
+    } else if (request.action === 'openMergeMode') {
+        const sidebar = document.querySelector('.mf-sidebar');
+        if (sidebar) {
+            sidebar.classList.add('mf-open');
+            // Trigger link mode
+            const linkButton = document.getElementById('mf-link-mode');
+            if (linkButton) {
+                linkButton.click();
+            }
+            sendResponse({ success: true });
+        } else {
+            sendResponse({ success: false, error: 'Sidebar not found' });
+        }
+    }
+    return true;
+});

@@ -1,0 +1,73 @@
+.comicPage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform-origin: left center;
+  transition: transform 0.1s linear; /* Smooth out small jitters */
+  will-change: transform;
+  background-color: var(--void-black);
+  border-right: 2px solid var(--void-ink);
+  
+  /* The magic: Rotate based on the variable set by JS */
+  transform: perspective(2000px) rotateY(var(--angle, 0deg));
+  
+  /* Shadow for depth perception when flipping */
+  box-shadow: inset -10px 0 20px -10px rgba(0,0,0,0.5);
+}
+
+.comicPageContent {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden; /* Hide back when flipped */
+  background-color: var(--void-black);
+  overflow: hidden;
+}
+
+.comicPageBack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  transform: rotateY(180deg);
+  background-color: #1a1a1a;
+  background-image: radial-gradient(circle, #333 1px, transparent 1px);
+  background-size: 20px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Halftone Pattern Mixin Class */
+.halftoneBg {
+  background-image: radial-gradient(circle, var(--void-purple) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.1;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Comic Shadow Helper */
+.comicShadow {
+  box-shadow: 8px 8px 0px #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comicPage {
+    transform: none !important;
+    position: relative !important;
+    height: 100vh !important;
+    border-bottom: 2px solid var(--void-ink);
+  }
+  
+  .comicPageBack {
+    display: none;
+  }
+}
+

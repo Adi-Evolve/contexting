@@ -43,39 +43,12 @@
         </div>
     </div>
 
-    <div class="export-section">
-        <div class="export-format">
-            <select id="exportFormat">
-                <option value="markdown">📝 Markdown</option>
-                <option value="json">📊 JSON</option>
-                <option value="txt">📄 Plain Text</option>
-                <option value="html">🌐 HTML</option>
-            </select>
+    <div class="card">
+        <div class="card-title">💬 Recent Conversations</div>
+        <div id="conversationList" class="conversation-list">
+            <div class="loading">Loading conversations...</div>
         </div>
-        <button class="button" id="exportBtn">
-            <span>📥</span> Export Conversations
-        </button>
-        <button class="button secondary" id="previewBtn">
-            <span>👁️</span> Preview Export
-        </button>
     </div>
-    
-    <button class="button" id="openSidebar">
-        <span>📖</span> View Conversations
-    </button>
-
-    <div class="button-group">
-        <button class="button secondary" id="mergeBtn">
-            <span>🔗</span> Merge
-        </button>
-        <button class="button secondary" id="archiveBtn">
-            <span>📦</span> Archive
-        </button>
-    </div>
-    
-    <button class="button secondary" id="settingsBtn">
-        <span>⚙️</span> Settings
-    </button>
 
     <div class="shortcuts">
         <div class="shortcuts-title">⌨️ Keyboard Shortcuts</div>

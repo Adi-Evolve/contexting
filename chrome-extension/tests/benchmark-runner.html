@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOID - Performance Benchmarks</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        h1 {
+            color: #f0f;
+            text-align: center;
+            text-shadow: 0 0 10px #f0f;
+        }
+        
+        #console {
+            background: #111;
+            border: 2px solid #f0f;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 600px;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+        }
+        
+        .benchmark-header {
+            color: #ff0;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        
+        .benchmark-pass {
+            color: #0f0;
+        }
+        
+        .benchmark-fail {
+            color: #f00;
+        }
+        
+        button {
+            background: #f0f;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px 5px;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        }
+        
+        button:hover {
+            background: #0ff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        #controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .progress {
+            background: #222;
+            border: 1px solid #f0f;
+            border-radius: 5px;
+            height: 30px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #f0f, #0ff);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>⚡ VOID - PERFORMANCE BENCHMARKS</h1>
+    
+    <div id="controls">
+        <button id="runBenchmarks">Run Benchmarks</button>
+        <button id="clearConsole">Clear Console</button>
+    </div>
+    
+    <div class="progress">
+        <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+    
+    <div id="console"></div>
+    
+    <!-- Load core modules -->
+    <script src="../core/hierarchy-manager.js"></script>
+    <script src="../core/delta-engine.js"></script>
+    <script src="../core/semantic-fingerprint-v2.js"></script>
+    <script src="../core/causal-reasoner.js"></script>
+    <script src="../core/multimodal-handler.js"></script>
+    <script src="../core/federated-sync.js"></script>
+    <script src="../core/llm-query-engine.js"></script>
+    <script src="../core/void-core.js"></script>
+    
+    <!-- Load benchmark suite -->
+    <script src="performance-benchmark.js"></script>
+    
+    <script>
+        const consoleDiv = document.getElementById('console');
+        const progressBar = document.getElementById('progressBar');
+        const originalLog = console.log;
+        
+        let totalBenchmarks = 6;
+        let completedBenchmarks = 0;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            
+            const message = args.join(' ');
+            const line = document.createElement('div');
+            
+            // Style based on content
+            if (message.includes('✅')) {
+                line.className = 'benchmark-pass';
+            } else if (message.includes('❌')) {
+                line.className = 'benchmark-fail';
+            } else if (message.includes('Benchmarking')) {
+                line.className = 'benchmark-header';
+                completedBenchmarks++;
+                updateProgress();
+            }
+            
+            line.textContent = message;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+        
+        function updateProgress() {
+            const percent = Math.round((completedBenchmarks / totalBenchmarks) * 100);
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+        }
+        
+        document.getElementById('runBenchmarks').addEventListener('click', async () => {
+            const button = document.getElementById('runBenchmarks');
+            button.disabled = true;
+            button.textContent = 'Running...';
+            
+            consoleDiv.innerHTML = '';
+            completedBenchmarks = 0;
+            updateProgress();
+            
+            const benchmarks = new VOIDPerformanceBenchmarks();
+            await benchmarks.runAll();
+            
+            button.disabled = false;
+            button.textContent = 'Run Benchmarks';
+        });
+        
+        document.getElementById('clearConsole').addEventListener('click', () => {
+            consoleDiv.innerHTML = '';
+            completedBenchmarks = 0;
+            updateProgress();
+        });
+        
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('runBenchmarks').click();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

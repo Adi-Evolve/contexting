@@ -2,38 +2,47 @@
   "manifest_version": 3,
   "name": "void",
   "version": "1.0.0",
-  "description": "Persistent memory for ChatGPT and Claude. Never forget your conversations.",
+  "description": "Universal persistent memory for ALL AI chats: ChatGPT, Claude, Gemini, Grok, DeepSeek, Perplexity, and more.",
   
   "permissions": [
     "storage",
     "unlimitedStorage",
-    "tabs"
+    "tabs",
+    "alarms",
+    "contextMenus"
   ],
   
   "host_permissions": [
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
-    "https://claude.ai/*"
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://x.com/i/grok/*",
+    "https://chat.deepseek.com/*",
+    "https://www.perplexity.ai/*",
+    "https://poe.com/*",
+    "https://huggingface.co/chat/*",
+    "https://*.ai/*"
   ],
   
   "background": {
-    "service_worker": "background-v2.js",
-    "type": "module"
+    "service_worker": "background-v3-step6.js"
   },
   
   "content_scripts": [
     {
       "matches": [
         "https://chat.openai.com/*",
-        "https://chatgpt.com/*"
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://x.com/i/grok/*",
+        "https://chat.deepseek.com/*",
+        "https://www.perplexity.ai/*",
+        "https://poe.com/*",
+        "https://huggingface.co/chat/*"
       ],
-      "js": ["tool-usage-tracker.js", "code-language-detector.js", "conversation-threader.js", "context-extractor.js", "context-extractor-v2.js", "conversation-tracker.js", "content-chatgpt-v2.js"],
-      "css": ["styles-v2.css"],
-      "run_at": "document_end"
-    },
-    {
-      "matches": ["https://claude.ai/*"],
-      "js": ["tool-usage-tracker.js", "code-language-detector.js", "conversation-threader.js", "context-extractor.js", "context-extractor-v2.js", "conversation-tracker.js", "content-claude.js"],
+      "js": ["tool-usage-tracker.js", "code-language-detector.js", "conversation-threader.js", "context-extractor-v2.js", "conversation-tracker.js", "content-chatgpt-v2.js"],
       "css": ["styles-v2.css"],
       "run_at": "document_end"
     }
@@ -43,10 +52,12 @@
     "default_popup": "popup.html"
   },
   
+  "options_page": "test-resume-chat.html",
+  
   "web_accessible_resources": [
     {
       "resources": ["sidebar.html"],
-      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*", "https://claude.ai/*"]
+      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*", "https://claude.ai/*", "https://gemini.google.com/*", "https://x.com/*", "https://chat.deepseek.com/*", "https://www.perplexity.ai/*", "https://poe.com/*", "https://huggingface.co/*"]
     }
   ]
 }

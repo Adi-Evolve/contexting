@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize
     await loadTheme();
     await loadStats();
+    await loadConversations(); // Load conversations for display
     setupEventListeners();
 });
 
@@ -14,26 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupEventListeners() {
     // Theme toggle
     document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-
-    // Main actions
-    document.getElementById('openSidebar').addEventListener('click', openSidebar);
-    document.getElementById('exportBtn').addEventListener('click', exportConversations);
-    document.getElementById('previewBtn').addEventListener('click', showPreview);
-    document.getElementById('mergeBtn').addEventListener('click', openMergeMode);
-    document.getElementById('archiveBtn').addEventListener('click', downloadArchive);
-    document.getElementById('settingsBtn').addEventListener('click', openSettings);
-
-    // Preview modal
-    document.getElementById('previewClose').addEventListener('click', closePreview);
-    document.getElementById('previewCancel').addEventListener('click', closePreview);
-    document.getElementById('previewExport').addEventListener('click', exportFromPreview);
-
-    // Close modal on outside click
-    document.getElementById('previewModal').addEventListener('click', (e) => {
-        if (e.target.id === 'previewModal') {
-            closePreview();
-        }
-    });
 }
 
 /**
@@ -134,6 +115,106 @@ async function loadStats() {
         console.error('Failed to load stats:', error);
         document.getElementById('status').textContent = 'Error';
     }
+}
+
+/**
+ * Load and display conversations
+ */
+async function loadConversations() {
+    try {
+        const response = await chrome.runtime.sendMessage({ 
+            action: 'getConversations',
+            filter: 'all'
+        });
+
+        if (response && response.conversations) {
+            displayConversations(response.conversations);
+        }
+    } catch (error) {
+        console.error('Failed to load conversations:', error);
+        document.getElementById('conversationList').innerHTML = '<div class="error">Failed to load conversations</div>';
+    }
+}
+
+/**
+ * Display conversations in popup
+ */
+function displayConversations(conversations) {
+    const container = document.getElementById('conversationList');
+    
+    if (conversations.length === 0) {
+        container.innerHTML = '<div class="empty-state">No conversations yet</div>';
+        return;
+    }
+    
+    // Sort by timestamp (newest first) and take top 5
+    const sorted = conversations
+        .sort((a, b) => (b.timestamp || b.startTime || 0) - (a.timestamp || a.startTime || 0))
+        .slice(0, 5);
+    
+    container.innerHTML = sorted.map(conv => {
+        const title = conv.title || conv.messages[0]?.content?.substring(0, 40) || 'Untitled';
+        const messageCount = conv.messages?.length || conv.messageCount || 0;
+        const timeAgo = getTimeAgo(conv.startTime || conv.timestamp);
+        
+        return `
+            <div class="conversation-item" data-id="${conv.id}">
+                <div class="conv-title">${escapeHtml(title)}</div>
+                <div class="conv-meta">
+                    <span class="conv-messages">${messageCount} msgs</span>
+                    <span class="conv-time">${timeAgo}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Add click listeners
+    container.querySelectorAll('.conversation-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const id = item.dataset.id;
+            viewConversationInSidebar(id);
+        });
+    });
+}
+
+/**
+ * View conversation in sidebar
+ */
+async function viewConversationInSidebar(conversationId) {
+    try {
+        await chrome.runtime.sendMessage({ 
+            action: 'openSidebar',
+            conversationId: conversationId 
+        });
+        // Close popup after opening sidebar
+        window.close();
+    } catch (error) {
+        console.error('Failed to open sidebar:', error);
+    }
+}
+
+/**
+ * Get time ago string
+ */
+function getTimeAgo(timestamp) {
+    if (!timestamp) return 'Unknown';
+    
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    return new Date(timestamp).toLocaleDateString();
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 /**

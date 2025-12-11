@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V3 Module Output Test - Detailed Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(30, 60, 114, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .status {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #1e3c72;
+            font-weight: 600;
+        }
+
+        .results {
+            padding: 30px;
+            max-height: 700px;
+            overflow-y: auto;
+        }
+
+        .module-output {
+            margin-bottom: 30px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #e9ecef;
+            background: white;
+        }
+
+        .module-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .module-content {
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .output-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #1e3c72;
+        }
+
+        .output-item h4 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+
+        .json-view {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .conversation-box {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+
+        .message {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #6c757d;
+        }
+
+        .message.user {
+            background: #e3f2fd;
+            border-left-color: #2196F3;
+        }
+
+        .message.assistant {
+            background: #f3e5f5;
+            border-left-color: #9c27b0;
+        }
+
+        .message-role {
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+
+        .final-prompt {
+            background: linear-gradient(135deg, #00c853 0%, #64dd17 100%);
+            color: white;
+            padding: 30px;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+
+        .final-prompt h2 {
+            margin-bottom: 20px;
+        }
+
+        .prompt-text {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .metric-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            margin-right: 10px;
+            font-size: 0.9em;
+        }
+
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e3c72;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔬 V3 Module Output Test</h1>
+            <p>Detailed analysis of each module's processing and final optimized prompt generation</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn-primary" onclick="runModuleTest()">🚀 Run Module Test</button>
+            <button class="btn-secondary" onclick="clearResults()">🗑️ Clear</button>
+            <div class="status" id="status">Ready to test</div>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <script src="hierarchy-manager.js?v=4"></script>
+    <script src="delta-engine.js?v=4"></script>
+    <script src="semantic-fingerprint-v2.js?v=4"></script>
+    <script src="causal-reasoner.js?v=4"></script>
+    <script src="multimodal-handler.js?v=4"></script>
+
+    <script>
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            updateStatus('Ready to test');
+        }
+
+        // Realistic dummy conversation
+        const dummyConversation = {
+            id: 'conv_test_' + Date.now(),
+            title: 'Building a Todo App with React',
+            platform: 'chatgpt',
+            messages: [
+                {
+                    id: 'msg1',
+                    role: 'user',
+                    content: 'I want to build a todo app with React. Can you help me get started?',
+                    timestamp: Date.now()
+                },
+                {
+                    id: 'msg2',
+                    role: 'assistant',
+                    content: 'I\'d be happy to help! Let\'s start with the basic structure. First, create a new React component called TodoApp. We\'ll need state to manage the todos, and functions to add, delete, and toggle completion.',
+                    timestamp: Date.now() + 1000
+                },
+                {
+                    id: 'msg3',
+                    role: 'user',
+                    content: 'How do I manage the state? Should I use useState or useReducer?',
+                    timestamp: Date.now() + 2000
+                },
+                {
+                    id: 'msg4',
+                    role: 'assistant',
+                    content: 'For a simple todo app, useState is perfect. Here\'s an example:\n\n```javascript\nconst [todos, setTodos] = useState([]);\nconst [input, setInput] = useState(\'\');\n```\n\nYou\'d use useReducer for more complex state logic with multiple actions.',
+                    timestamp: Date.now() + 3000
+                },
+                {
+                    id: 'msg5',
+                    role: 'user',
+                    content: 'Great! Now how do I add a new todo?',
+                    timestamp: Date.now() + 4000
+                },
+                {
+                    id: 'msg6',
+                    role: 'assistant',
+                    content: 'Here\'s an addTodo function:\n\n```javascript\nconst addTodo = () => {\n  if (input.trim()) {\n    setTodos([...todos, {\n      id: Date.now(),\n      text: input,\n      completed: false\n    }]);\n    setInput(\'\');\n  }\n};\n```',
+                    timestamp: Date.now() + 5000
+                },
+                {
+                    id: 'msg7',
+                    role: 'user',
+                    content: 'What about deleting todos?',
+                    timestamp: Date.now() + 6000
+                },
+                {
+                    id: 'msg8',
+                    role: 'assistant',
+                    content: 'You can filter the todos array:\n\n```javascript\nconst deleteTodo = (id) => {\n  setTodos(todos.filter(todo => todo.id !== id));\n};\n```',
+                    timestamp: Date.now() + 7000
+                },
+                {
+                    id: 'msg9',
+                    role: 'user',
+                    content: 'Perfect! One last thing - how do I save todos to localStorage so they persist?',
+                    timestamp: Date.now() + 8000
+                },
+                {
+                    id: 'msg10',
+                    role: 'assistant',
+                    content: 'Use useEffect to save and load from localStorage:\n\n```javascript\nuseEffect(() => {\n  const saved = localStorage.getItem(\'todos\');\n  if (saved) setTodos(JSON.parse(saved));\n}, []);\n\nuseEffect(() => {\n  localStorage.setItem(\'todos\', JSON.stringify(todos));\n}, [todos]);\n```\n\nThe first effect runs once on mount to load saved todos. The second runs whenever todos change to save them.',
+                    timestamp: Date.now() + 9000
+                }
+            ]
+        };
+
+        async function runModuleTest() {
+            clearResults();
+            updateStatus('Processing conversation through all modules...');
+
+            const results = document.getElementById('results');
+
+            // Display conversation
+            const convBox = document.createElement('div');
+            convBox.className = 'conversation-box';
+            convBox.innerHTML = `
+                <h2>📝 Test Conversation: "${dummyConversation.title}"</h2>
+                <p style="color: #6c757d; margin-bottom: 15px;">${dummyConversation.messages.length} messages</p>
+                ${dummyConversation.messages.map(msg => `
+                    <div class="message ${msg.role}">
+                        <div class="message-role">${msg.role}</div>
+                        <div>${msg.content}</div>
+                    </div>
+                `).join('')}
+            `;
+            results.appendChild(convBox);
+
+            try {
+                // Initialize modules
+                const hierarchyManager = new HierarchyManager({
+                    maxDepth: 10,
+                    maxBranchFactor: 5
+                });
+
+                const deltaEngine = new DeltaEngine({
+                    compressionThreshold: 0.3
+                });
+
+                const semanticFingerprint = new SemanticFingerprintV2({
+                    duplicateThreshold: 0.85,
+                    bloomSize: 1000
+                });
+
+                const causalReasoner = new CausalReasoner({
+                    maxChainDepth: 10,
+                    inferenceThreshold: 0.7
+                });
+
+                // Process all messages
+                let previousMessageId = null;
+                const processingResults = {
+                    hierarchy: [],
+                    semantic: [],
+                    causal: [],
+                    deltas: []
+                };
+
+                for (const message of dummyConversation.messages) {
+                    // 1. Hierarchy processing
+                    const hierarchyResult = hierarchyManager.addMessage({
+                        role: message.role,
+                        content: message.content,
+                        timestamp: message.timestamp
+                    });
+                    processingResults.hierarchy.push({
+                        messageId: message.id,
+                        nodeId: hierarchyResult.id,
+                        importance: hierarchyResult.metadata.importance,
+                        depth: hierarchyResult.depth,
+                        topicKeywords: hierarchyResult.metadata.topicKeywords
+                    });
+
+                    // 2. Semantic fingerprinting
+                    const fingerprint = semanticFingerprint.generateFingerprint(message.content);
+                    const dupCheck = semanticFingerprint.checkDuplicate(fingerprint);
+                    processingResults.semantic.push({
+                        messageId: message.id,
+                        fingerprint: fingerprint,
+                        isDuplicate: dupCheck.isDuplicate,
+                        confidence: dupCheck.confidence,
+                        contentLength: message.content.length
+                    });
+
+                    // 3. Causal reasoning
+                    const causalResult = causalReasoner.addMessage(message, previousMessageId);
+                    processingResults.causal.push({
+                        messageId: message.id,
+                        nodeId: causalResult.nodeId,
+                        type: causalResult.type,
+                        hasParent: !!previousMessageId
+                    });
+
+                    previousMessageId = message.id;
+                }
+
+                // MODULE 1: Hierarchy Manager Output
+                displayModuleOutput('📊 Hierarchy Manager', {
+                    description: 'Organizes messages in a tree structure with importance scoring',
+                    stats: hierarchyManager.getStats(),
+                    processingResults: processingResults.hierarchy,
+                    serialized: hierarchyManager.serialize()
+                });
+
+                // MODULE 2: Delta Engine Output
+                const state1 = {
+                    tree: { nodes: Array.from(hierarchyManager.tree.nodes.entries()).slice(0, 5) },
+                    version: 1
+                };
+                const state2 = {
+                    tree: { nodes: Array.from(hierarchyManager.tree.nodes.entries()) },
+                    version: 2
+                };
+                const diff = deltaEngine.calculateDiff(state1, state2);
+                
+                displayModuleOutput('🔄 Delta Engine', {
+                    description: 'Detects incremental changes for efficient storage',
+                    diff: {
+                        added: diff.added.length,
+                        modified: diff.modified.length,
+                        deleted: diff.deleted.length
+                    },
+                    compressionRatio: (JSON.stringify(diff).length / JSON.stringify(state2).length * 100).toFixed(2) + '%'
+                });
+
+                // MODULE 3: Semantic Fingerprint Output
+                displayModuleOutput('🔍 Semantic Fingerprint V2', {
+                    description: 'Generates unique fingerprints for duplicate detection',
+                    cacheSize: semanticFingerprint.fingerprintCache.size,
+                    processingResults: processingResults.semantic,
+                    bloomFilterStats: {
+                        size: semanticFingerprint.bloomFilter.length,
+                        itemsAdded: processingResults.semantic.length
+                    }
+                });
+
+                // MODULE 4: Causal Reasoner Output
+                const lastNodeId = Array.from(causalReasoner.causalGraph.nodes.keys()).pop();
+                const causalChain = causalReasoner.getCausalChain(lastNodeId, 10);
+                
+                displayModuleOutput('🔗 Causal Reasoner', {
+                    description: 'Tracks cause-effect relationships between messages',
+                    graphStats: {
+                        nodes: causalReasoner.causalGraph.nodes.size,
+                        edges: causalReasoner.causalGraph.edges.size
+                    },
+                    processingResults: processingResults.causal,
+                    causalChain: causalChain.map(node => ({
+                        id: node.id,
+                        type: node.type,
+                        content: node.content.substring(0, 50) + '...'
+                    }))
+                });
+
+                // FINAL: Generate Optimized Prompt
+                generateOptimizedPrompt(
+                    hierarchyManager,
+                    semanticFingerprint,
+                    causalReasoner,
+                    dummyConversation
+                );
+
+                updateStatus('✅ All modules processed successfully!');
+
+            } catch (error) {
+                results.innerHTML += `
+                    <div class="module-output">
+                        <div class="module-header" style="background: #dc3545;">
+                            ❌ ERROR
+                        </div>
+                        <div class="module-content">
+                            <div class="output-item">
+                                <h4>Error Message</h4>
+                                <p>${error.message}</p>
+                                <pre>${error.stack}</pre>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                updateStatus('❌ Test failed');
+            }
+        }
+
+        function displayModuleOutput(title, data) {
+            const results = document.getElementById('results');
+            const moduleDiv = document.createElement('div');
+            moduleDiv.className = 'module-output';
+            
+            moduleDiv.innerHTML = `
+                <div class="module-header">
+                    ${title}
+                    <span class="metric-badge">✅ Working</span>
+                </div>
+                <div class="module-content">
+                    <div class="output-item">
+                        <h4>Description</h4>
+                        <p>${data.description}</p>
+                    </div>
+                    <div class="output-item">
+                        <h4>Output Data</h4>
+                        <div class="json-view">${JSON.stringify(data, null, 2)}</div>
+                    </div>
+                </div>
+            `;
+            
+            results.appendChild(moduleDiv);
+        }
+
+        function generateOptimizedPrompt(hierarchy, semantic, causal, conversation) {
+            const results = document.getElementById('results');
+
+            // Extract hierarchical context (most important messages)
+            const context = hierarchy.getHierarchicalContext(5, 2000);
+
+            // Get causal chain
+            const lastNodeId = Array.from(causal.causalGraph.nodes.keys()).pop();
+            const causalChain = causal.getCausalChain(lastNodeId, 5);
+
+            // Calculate stats
+            const stats = hierarchy.getStats();
+            const duplicateCount = Array.from(semantic.fingerprintCache.values())
+                .filter((fp, idx, arr) => arr.indexOf(fp) !== idx).length;
+
+            // Build optimized prompt
+            const optimizedPrompt = `=== CONVERSATION CONTEXT ===
+Title: ${conversation.title}
+Total Messages: ${conversation.messages.length}
+Hierarchical Depth: ${stats.maxDepth}
+Important Messages Extracted: ${context.length}
+Duplicate Content Detected: ${duplicateCount}
+Causal Chain Length: ${causalChain.length}
+
+=== KEY CONVERSATION POINTS ===
+${context.map((msg, idx) => `${idx + 1}. [${msg.role.toUpperCase()}] ${msg.content}`).join('\n\n')}
+
+=== CAUSAL REASONING CHAIN ===
+${causalChain.map((node, idx) => `${idx + 1}. Type: ${node.type} | Content: ${node.content.substring(0, 100)}...`).join('\n')}
+
+=== TOPIC KEYWORDS ===
+${[...new Set(context.flatMap(msg => hierarchy.tree.nodes.get(msg.id)?.metadata?.topicKeywords || []))].join(', ')}
+
+=== OPTIMIZED CONTEXT FOR AI ===
+The user is working on: "${conversation.title}"
+
+Recent progress:
+${context.slice(-3).map(msg => `- ${msg.content.substring(0, 150)}...`).join('\n')}
+
+Current state: The conversation has ${stats.totalNodes} nodes with maximum depth of ${stats.maxDepth}. 
+The causal chain shows a ${causalChain[0]?.type || 'discussion'} pattern.
+
+Compression achieved: ${((1 - (JSON.stringify(context).length / JSON.stringify(conversation.messages).length)) * 100).toFixed(1)}% context reduction while maintaining key information.
+`;
+
+            const promptDiv = document.createElement('div');
+            promptDiv.className = 'final-prompt';
+            promptDiv.innerHTML = `
+                <h2>✨ Final Optimized Prompt</h2>
+                <div style="margin-bottom: 15px;">
+                    <span class="metric-badge">Original: ${JSON.stringify(conversation.messages).length} chars</span>
+                    <span class="metric-badge">Optimized: ${optimizedPrompt.length} chars</span>
+                    <span class="metric-badge">Reduction: ${((1 - (optimizedPrompt.length / JSON.stringify(conversation.messages).length)) * 100).toFixed(1)}%</span>
+                </div>
+                <div class="prompt-text">${optimizedPrompt}</div>
+            `;
+
+            results.appendChild(promptDiv);
+        }
+    </script>
+</body>
+</html>

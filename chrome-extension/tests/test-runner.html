@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOID Core - Integration Tests</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        h1 {
+            color: #0ff;
+            text-align: center;
+            text-shadow: 0 0 10px #0ff;
+        }
+        
+        #console {
+            background: #111;
+            border: 2px solid #0f0;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 400px;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        .test-header {
+            color: #ff0;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        
+        .test-pass {
+            color: #0f0;
+        }
+        
+        .test-fail {
+            color: #f00;
+        }
+        
+        .test-summary {
+            background: #222;
+            border: 2px solid #0ff;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px 5px;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        button:hover {
+            background: #0ff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        #controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 VOID CORE - INTEGRATION TESTS</h1>
+    
+    <div id="controls">
+        <button id="runTests">Run All Tests</button>
+        <button id="clearConsole">Clear Console</button>
+    </div>
+    
+    <div id="console"></div>
+    
+    <!-- Load core modules -->
+    <script src="../core/hierarchy-manager.js"></script>
+    <script src="../core/delta-engine.js"></script>
+    <script src="../core/semantic-fingerprint-v2.js"></script>
+    <script src="../core/causal-reasoner.js"></script>
+    <script src="../core/multimodal-handler.js"></script>
+    <script src="../core/federated-sync.js"></script>
+    <script src="../core/llm-query-engine.js"></script>
+    <script src="../core/void-core.js"></script>
+    
+    <!-- Load test suite -->
+    <script src="integration-test.js"></script>
+    
+    <script>
+        // Override console.log to display in page
+        const consoleDiv = document.getElementById('console');
+        const originalLog = console.log;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            
+            const message = args.join(' ');
+            const line = document.createElement('div');
+            
+            // Style based on content
+            if (message.includes('✅')) {
+                line.className = 'test-pass';
+            } else if (message.includes('❌')) {
+                line.className = 'test-fail';
+            } else if (message.includes('Testing')) {
+                line.className = 'test-header';
+            }
+            
+            line.textContent = message;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+        
+        // Run tests button
+        document.getElementById('runTests').addEventListener('click', async () => {
+            const button = document.getElementById('runTests');
+            button.disabled = true;
+            button.textContent = 'Running...';
+            
+            consoleDiv.innerHTML = '';
+            
+            const suite = new VOIDTestSuite();
+            await suite.runAll();
+            
+            button.disabled = false;
+            button.textContent = 'Run All Tests';
+        });
+        
+        // Clear console button
+        document.getElementById('clearConsole').addEventListener('click', () => {
+            consoleDiv.innerHTML = '';
+        });
+        
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('runTests').click();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

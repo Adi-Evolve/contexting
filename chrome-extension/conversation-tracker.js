@@ -11,6 +11,7 @@ class ConversationTracker {
         this.currentUrl = window.location.href;
         this.firstUserMessage = null; // Track first user message to identify unique conversations
         this.urlChangeHandler = this.handleUrlChange.bind(this);
+        this.saveTimeout = null; // Debounce timer for auto-save
         
         // Monitor URL changes (navigation to different chats)
         this.startUrlMonitoring();
@@ -64,15 +65,43 @@ class ConversationTracker {
         this.currentUrl = newUrl;
     }
     
-    // Extract chat ID from URL
+    // Extract chat ID from URL - Universal support for all AI platforms
     extractChatId(url) {
         // ChatGPT format: /c/[chat-id]
-        const chatMatch = url.match(/\/c\/([a-f0-9-]+)/);
-        if (chatMatch) return chatMatch[1];
+        const chatGptMatch = url.match(/\/c\/([a-f0-9-]+)/);
+        if (chatGptMatch) return chatGptMatch[1];
         
         // Claude format: /chat/[chat-id]
         const claudeMatch = url.match(/\/chat\/([a-z0-9-]+)/);
         if (claudeMatch) return claudeMatch[1];
+        
+        // Gemini format: /app/[chat-id]
+        const geminiMatch = url.match(/\/app\/([a-z0-9-]+)/);
+        if (geminiMatch) return geminiMatch[1];
+        
+        // Grok format: /i/grok/[chat-id]
+        const grokMatch = url.match(/\/i\/grok\/([a-z0-9-]+)/);
+        if (grokMatch) return grokMatch[1];
+        
+        // DeepSeek format: /chat/[chat-id]
+        const deepseekMatch = url.match(/chat\.deepseek\.com\/.*?([a-z0-9-]+)$/);
+        if (deepseekMatch) return deepseekMatch[1];
+        
+        // Perplexity format: /search/[chat-id]
+        const perplexityMatch = url.match(/\/search\/([a-z0-9-]+)/);
+        if (perplexityMatch) return perplexityMatch[1];
+        
+        // Poe format: /[chat-id]
+        const poeMatch = url.match(/poe\.com\/([a-zA-Z0-9_-]+)$/);
+        if (poeMatch) return poeMatch[1];
+        
+        // HuggingChat format: /conversation/[chat-id]
+        const huggingMatch = url.match(/\/conversation\/([a-z0-9-]+)/);
+        if (huggingMatch) return huggingMatch[1];
+        
+        // Generic fallback: any alphanumeric ID at end of URL
+        const genericMatch = url.match(/\/([a-zA-Z0-9_-]{10,})$/);
+        if (genericMatch) return genericMatch[1];
         
         return null;
     }
@@ -95,22 +124,21 @@ class ConversationTracker {
     }
 
     // Start a new conversation or load existing one
-    async startNewConversation() {
+    async startNewConversation(forceNew = false) {
         const currentChatId = this.extractChatId(window.location.href);
         
-        // Try to find existing conversation with same chat ID
-        if (currentChatId) {
+        // Try to find existing conversation with same chat ID (only if not forcing new)
+        if (currentChatId && !forceNew) {
             const existingConv = await this.findConversationByChatId(currentChatId);
             if (existingConv) {
-                // Reuse existing conversation
-                this.conversationId = existingConv.id;
-                this.currentConversation = existingConv;
-                console.log(`🔄 Resumed existing conversation: ${this.conversationId}`);
-                return;
+                // Found existing - but on page reload, we want fresh capture
+                // So we'll create a new conversation and let it save/update later
+                console.log(`📝 Found existing conversation ${existingConv.id}, but will capture fresh messages`);
             }
         }
         
-        // Create new conversation with chat ID as part of the ID
+        // Always create fresh conversation for page load
+        // This ensures we capture all visible messages
         this.conversationId = currentChatId 
             ? `conv_${currentChatId}` 
             : `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -118,7 +146,7 @@ class ConversationTracker {
         this.currentConversation = {
             id: this.conversationId,
             chatId: currentChatId, // Store chat ID for lookup
-            title: null, // Will be generated from first message
+            title: null, // Will be generated from first message or page title
             messages: [],
             startTime: Date.now(),
             endTime: null,
@@ -141,15 +169,23 @@ class ConversationTracker {
     async addMessage(role, content) {
         const now = Date.now();
         
-        // Check if this is a different conversation by comparing first user message
+        console.log(`🔵 addMessage called: ${role}, content length: ${content.length}`);
+        
+        // Safety check - conversation should already exist (initialized in content script)
         if (!this.currentConversation) {
-            // No conversation exists, start new one
-            await this.startNewConversation();
-        } else if (role === 'user' && !this.currentConversation.firstUserMessage) {
-            // This is the first user message in current conversation, store it
+            console.error('❌ No current conversation! This should not happen.');
+            return;
+        }
+        
+        // Track first user message for conversation identification
+        if (role === 'user' && !this.currentConversation.firstUserMessage) {
             this.currentConversation.firstUserMessage = content;
             this.firstUserMessage = content;
-        } else if (this.lastMessageTime && now - this.lastMessageTime > this.conversationTimeout) {
+            console.log('📝 Set first user message for conversation');
+        }
+        
+        // Check for timeout-based conversation separation (only with URL change)
+        if (this.lastMessageTime && now - this.lastMessageTime > this.conversationTimeout) {
             // Timeout based separation (only if URL also changed or very long gap)
             const urlChanged = window.location.href !== this.currentUrl;
             if (urlChanged && this.currentConversation.messages.length > 0) {
@@ -171,15 +207,21 @@ class ConversationTracker {
         this.currentConversation.messages.push(message);
         this.currentConversation.messageCount++;
         this.lastMessageTime = now;
+        
+        console.log(`✅ Added message to conversation. Total messages: ${this.currentConversation.messages.length}, Title: "${this.currentConversation.title || 'NOT SET'}"`);
 
-        // Generate title from first user message
+        // Generate title from first user message (only if no title set yet)
         if (!this.currentConversation.title && role === 'user') {
             this.currentConversation.title = this.generateTitle(content);
+            console.log(`📝 Generated title from first message: "${this.currentConversation.title}"`);
         }
 
-        // Auto-save after every 3 messages or if conversation is long
-        if (this.currentConversation.messages.length % 3 === 0) {
-            this.saveConversation();
+        // Debounce auto-save: Save after assistant messages, but wait 1 second for more messages
+        if (role === 'assistant') {
+            if (this.saveTimeout) clearTimeout(this.saveTimeout);
+            this.saveTimeout = setTimeout(() => {
+                this.saveConversation();
+            }, 1000); // Wait 1 second after last assistant message
         }
 
         console.log(`📝 Added ${role} message to conversation ${this.conversationId}`);
@@ -195,10 +237,16 @@ class ConversationTracker {
     // Save conversation to storage
     async saveConversation() {
         if (!this.currentConversation || this.currentConversation.messages.length === 0) {
+            console.log('⏭️ Not saving - no conversation or no messages');
             return;
         }
 
         this.currentConversation.endTime = Date.now();
+
+        console.log(`💾 Saving conversation: ${this.conversationId}`);
+        console.log(`   - Title: "${this.currentConversation.title || 'UNTITLED'}"`);
+        console.log(`   - Messages: ${this.currentConversation.messages.length}`);
+        console.log(`   - ChatId: ${this.currentConversation.chatId}`);
 
         // Generate LLM-friendly summary
         const summary = this.generateLLMSummary(this.currentConversation);
@@ -224,6 +272,10 @@ class ConversationTracker {
             }
             if (response?.success) {
                 console.log(`✅ Saved/Updated conversation: ${this.conversationId}`);
+                // Notify content script to refresh sidebar
+                window.dispatchEvent(new CustomEvent('conversationSaved', { 
+                    detail: { id: this.conversationId } 
+                }));
             }
         });
     }
@@ -261,29 +313,19 @@ ${messages.map((msg, i) => `  <turn index="${i}" role="${msg.role}">
         // Create a semantic summary
         const semanticSummary = this.createSemanticSummary(messages);
 
-        // 🆕 Generate detailed context format using EnhancedContextExtractor
+        // 🆕 Generate detailed context format using ContextExtractor
         let optimalContext = null;
-        if (typeof EnhancedContextExtractor !== 'undefined') {
+        if (typeof ContextExtractor !== 'undefined') {
             try {
-                console.log('✅ EnhancedContextExtractor found, generating 7-point context...');
-                const extractor = new EnhancedContextExtractor();
+                console.log('✅ ContextExtractor found, generating 7-point context...');
+                const extractor = new ContextExtractor();
                 optimalContext = extractor.extractContext(conversation);
                 console.log('✅ Generated optimalContext:', optimalContext ? optimalContext.substring(0, 100) + '...' : 'NULL');
             } catch (e) {
-                console.error('❌ Enhanced context extraction failed:', e);
-                // Fallback to old extractor
-                if (typeof ContextExtractor !== 'undefined') {
-                    try {
-                        const oldExtractor = new ContextExtractor();
-                        optimalContext = oldExtractor.extractContext(conversation);
-                        console.log('✅ Used fallback ContextExtractor');
-                    } catch (e2) {
-                        console.error('❌ Fallback context extraction also failed:', e2);
-                    }
-                }
+                console.error('❌ Context extraction failed:', e);
             }
         } else {
-            console.error('❌ EnhancedContextExtractor not found! Script may not have loaded.');
+            console.error('❌ ContextExtractor not found! Script may not have loaded.');
         }
 
         return {
