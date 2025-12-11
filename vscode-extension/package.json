@@ -21,8 +21,7 @@
     "export"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onLanguageModelAccess:*"
+    "*"
   ],
   "main": "./extension.js",
   "contributes": {

@@ -17,9 +17,10 @@ const ConversationSidebarProvider = require('./conversation-sidebar.js');
 const EnhancedContextExtractor = require('./context-extractor-v2.js');
 
 // NEW: Advanced capture and assembly modules
-const EditorContextCapture = require('./src/capture/editorContextCapture.js');
-const SmartClipboardMonitor = require('./src/capture/smartClipboard.js');
-const ContextAssemblerVSCode = require('./src/assembler/contextAssemblerVSCode.js');
+// TEMPORARILY COMMENTED FOR TESTING
+// const EditorContextCapture = require('./src/capture/editorContextCapture.js');
+// const SmartClipboardMonitor = require('./src/capture/smartClipboard.js');
+// const ContextAssemblerVSCode = require('./src/assembler/contextAssemblerVSCode.js');
 
 let errorHandler;
 let storageManager;
@@ -36,53 +37,70 @@ let captureButton;
  * Activate extension
  */
 function activate(context) {
-    console.log('🧠 Remember VS Code Extension v4.0 activated');
+    try {
+        console.log('🧠 Remember VS Code Extension v4.0 - Starting activation...');
 
-    // Initialize managers
-    errorHandler = new ErrorHandler();
-    storageManager = new StorageManager(context);
+        // Initialize managers
+        console.log('Initializing ErrorHandler...');
+        errorHandler = new ErrorHandler();
+        
+        console.log('Initializing StorageManager...');
+        storageManager = new StorageManager(context);
 
-    // Initialize sidebar
-    sidebarProvider = new ConversationSidebarProvider(storageManager);
-    context.subscriptions.push(
-        vscode.window.registerTreeDataProvider('remember-sidebar', sidebarProvider)
-    );
+        // Initialize sidebar
+        console.log('Initializing Sidebar...');
+        sidebarProvider = new ConversationSidebarProvider(storageManager);
+        context.subscriptions.push(
+            vscode.window.registerTreeDataProvider('remember.conversations', sidebarProvider)
+        );
 
-    // NEW: Initialize advanced capture modules
-    editorContextCapture = new EditorContextCapture(context);
-    contextAssembler = new ContextAssemblerVSCode(storageManager);
-    
-    smartClipboard = new SmartClipboardMonitor(async (detectedConversation) => {
-        await handleDetectedConversation(detectedConversation);
-    });
-    
-    // NEW: Create quick capture button in status bar
-    captureButton = vscode.window.createStatusBarItem(
-        vscode.StatusBarAlignment.Right,
-        100
-    );
-    captureButton.text = '$(comment-discussion) Capture Chat';
-    captureButton.command = 'remember.quickCapture';
-    captureButton.tooltip = 'Quick capture last AI conversation (Ctrl+Shift+C)';
-    captureButton.show();
-    context.subscriptions.push(captureButton);
+        // NEW: Initialize advanced capture modules
+        // TEMPORARILY COMMENTED FOR TESTING
+        // editorContextCapture = new EditorContextCapture(context);
+        // contextAssembler = new ContextAssemblerVSCode(storageManager);
+        
+        // smartClipboard = new SmartClipboardMonitor(async (detectedConversation) => {
+        //     await handleDetectedConversation(detectedConversation);
+        // });
+        
+        // NEW: Create quick capture button in status bar
+        console.log('Creating status bar button...');
+        captureButton = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Right,
+            100
+        );
+        captureButton.text = '$(comment-discussion) Capture Chat';
+        captureButton.command = 'remember.quickCapture';
+        captureButton.tooltip = 'Quick capture last AI conversation (Ctrl+Shift+C)';
+        captureButton.show();
+        context.subscriptions.push(captureButton);
 
-    // Register all commands
-    registerCommands(context);
+        // Register all commands
+        console.log('Registering commands...');
+        registerCommands(context);
 
-    // Start conversation monitoring
-    startConversationMonitoring(context);
-    
-    // NEW: Start smart clipboard monitoring
-    smartClipboard.startMonitoring(2000);
+        // Start conversation monitoring
+        console.log('Starting conversation monitoring...');
+        startConversationMonitoring(context);
+        
+        // NEW: Start smart clipboard monitoring
+        // TEMPORARILY COMMENTED
+        // smartClipboard.startMonitoring(2000);
 
-    // Show activation message with new features
-    vscode.window.showInformationMessage('🧠 Remember v4.0: Enhanced AI Memory active!', 'What\'s New')
-        .then(action => {
-            if (action === 'What\'s New') {
-                showWhatsNew();
-            }
-        });
+        console.log('✅ Remember v4.0 activated successfully!');
+        
+        // Show activation message with new features
+        vscode.window.showInformationMessage('🧠 Remember v4.0: Enhanced AI Memory active!', 'What\'s New')
+            .then(action => {
+                if (action === 'What\'s New') {
+                    showWhatsNew();
+                }
+            });
+    } catch (error) {
+        console.error('❌ Error activating Remember extension:', error);
+        vscode.window.showErrorMessage(`Remember extension failed to activate: ${error.message}`);
+        throw error;
+    }
 }
 
 /**
