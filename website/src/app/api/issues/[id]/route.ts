@@ -124,9 +124,10 @@ export async function PATCH(
       updates.status = status
     }
 
+    // @ts-ignore - Supabase type inference issue with dynamic updates
     const { data, error } = await supabase
       .from('issues')
-      .update(updates as any)
+      .update(updates)
       .eq('id', params.id)
       .select(`
         *,
