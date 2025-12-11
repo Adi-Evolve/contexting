@@ -1,1 +1,1 @@
-export { ComicBookScene, useScrollProgress } from './ComicBookScene'
+export { ComicBookScene } from './ComicBookScene'
