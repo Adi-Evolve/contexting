@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Layout } from '@/components/layout'
 import { Button, Input, Alert, ComicPanel } from '@/components/ui'
 import { useAuth } from '@/hooks'
 
-export default function LoginPage() {
+function LoginContent() {
   const searchParams = useSearchParams()
   const mode = searchParams.get('mode') || 'login'
   const router = useRouter()
@@ -234,5 +234,13 @@ export default function LoginPage() {
         </div>
       </div>
     </Layout>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginContent />
+    </Suspense>
   )
 }
