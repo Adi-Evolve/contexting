@@ -89,7 +89,7 @@ export async function PATCH(
     }
 
     // Build update object
-    const updates: any = {
+    const updates: Record<string, any> = {
       updated_at: new Date().toISOString(),
     }
 
@@ -126,7 +126,7 @@ export async function PATCH(
 
     const { data, error } = await supabase
       .from('issues')
-      .update(updates)
+      .update(updates as any)
       .eq('id', params.id)
       .select(`
         *,
