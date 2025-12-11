@@ -127,18 +127,8 @@ class ConversationTracker {
     async startNewConversation(forceNew = false) {
         const currentChatId = this.extractChatId(window.location.href);
         
-        // Try to find existing conversation with same chat ID (only if not forcing new)
-        if (currentChatId && !forceNew) {
-            const existingConv = await this.findConversationByChatId(currentChatId);
-            if (existingConv) {
-                // Found existing - but on page reload, we want fresh capture
-                // So we'll create a new conversation and let it save/update later
-                console.log(`📝 Found existing conversation ${existingConv.id}, but will capture fresh messages`);
-            }
-        }
-        
-        // Always create fresh conversation for page load
-        // This ensures we capture all visible messages
+        // IMMEDIATELY create conversation object to prevent race conditions
+        // This must happen synchronously before any async operations
         this.conversationId = currentChatId 
             ? `conv_${currentChatId}` 
             : `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -156,6 +146,17 @@ class ConversationTracker {
             firstUserMessage: null // Track first message to identify this conversation
         };
         console.log(`🆕 Started new conversation: ${this.conversationId}`);
+        
+        // Try to find existing conversation with same chat ID (only if not forcing new)
+        // This happens AFTER creating the object to prevent null reference errors
+        if (currentChatId && !forceNew) {
+            const existingConv = await this.findConversationByChatId(currentChatId);
+            if (existingConv) {
+                // Found existing - but on page reload, we want fresh capture
+                // So we'll keep the new conversation and let it save/update later
+                console.log(`📝 Found existing conversation ${existingConv.id}, but will capture fresh messages`);
+            }
+        }
     }
 
     // Detect platform (ChatGPT or Claude)
@@ -268,6 +269,8 @@ class ConversationTracker {
             if (chrome.runtime.lastError) {
                 console.warn('🔄 Extension context lost. Caching locally...');
                 this.cacheLocally(conversationData);
+                // Reinitialize conversation after caching
+                this.startNewConversation(true);
                 return;
             }
             if (response?.success) {
@@ -276,6 +279,8 @@ class ConversationTracker {
                 window.dispatchEvent(new CustomEvent('conversationSaved', { 
                     detail: { id: this.conversationId } 
                 }));
+                // Reinitialize conversation for continued tracking
+                this.startNewConversation(true);
             }
         });
     }
