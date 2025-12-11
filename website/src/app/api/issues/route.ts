@@ -96,6 +96,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from('issues')
+      // @ts-expect-error - Supabase type inference issue
       .insert({
         user_id: user.id,
         title: sanitizedTitle,
