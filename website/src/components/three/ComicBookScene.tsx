@@ -4,6 +4,7 @@ import React, { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useScroll } from '@react-three/drei'
 import * as THREE from 'three'
+import '@/types/react-three-fiber'
 
 export function ComicBookScene() {
   const scroll = useScroll()
