@@ -81,7 +81,7 @@ export async function PATCH(
       )
     }
 
-    if (existingIssue.user_id !== user.id) {
+    if ((existingIssue as any).user_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -180,7 +180,7 @@ export async function DELETE(
       )
     }
 
-    if (existingIssue.user_id !== user.id) {
+    if ((existingIssue as any).user_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
